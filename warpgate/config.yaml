@@ -1,0 +1,4 @@
+package: warpgate
+generate:
+  client: true
+  models: true
