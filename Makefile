@@ -6,7 +6,7 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=andreee94
 NAME=warpgate
 BINARY=terraform-provider-${NAME}
-VERSION=0.1.0
+VERSION=0.0.1
 OS_ARCH=linux_amd64
 
 GOBIN=~/go/bin
@@ -54,3 +54,9 @@ install-oapi-codegen:
 
 gen-warpgate: install-oapi-codegen
 	$(GOBIN)/oapi-codegen -config $(CLIENTCONFIG) $(WARPGATEOPENAPI) > $(CLIENTGENFILE)
+
+install-tfplugindocs:
+	go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+
+gen-doc: install-tfplugindocs
+	$(GOBIN)/tfplugindocs generate

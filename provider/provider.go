@@ -253,6 +253,8 @@ func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureRespo
 
 func (p *warpgateProvider) GetResources(_ context.Context) (map[string]provider.ResourceType, diag.Diagnostics) {
 	return map[string]provider.ResourceType{
+		"warpgate_role":       roleResourceType{},
+		"warpgate_ssh_target": sshTargetResourceType{},
 		// "warpgate_port_forwarded": resourcePortForwardedType{},
 	}, nil
 }

@@ -1,6 +1,9 @@
 package models
 
+import "github.com/hashicorp/terraform-plugin-framework/types"
+
 type Role struct {
-	Id   string `tfsdk:"id"`
-	Name string `tfsdk:"name"`
+	// ID have to be nullable
+	Id   types.String `tfsdk:"id"`
+	Name string       `tfsdk:"name"`
 }

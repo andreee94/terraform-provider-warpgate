@@ -133,11 +133,11 @@ func (d sshTargetListDataSource) Read(ctx context.Context, req datasource.ReadRe
 
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetSsh{
 			AllowRoles: target.AllowRoles,
-			Id:         target.Id.String(),
+			Id:         types.String{Value: target.Id.String()},
 			Name:       target.Name,
 			Options: provider_models.TargetSSHOptions{
 				Host:     sshoptions.Host,
-				Port:     int(sshoptions.Port),
+				Port:     sshoptions.Port,
 				Username: sshoptions.Username,
 			},
 		})

@@ -1,5 +1,7 @@
 package models
 
+import "github.com/hashicorp/terraform-plugin-framework/types"
+
 // type TargetOptions interface{}
 
 /////////////////////////////////////////
@@ -7,14 +9,14 @@ package models
 
 type TargetSsh struct {
 	AllowRoles []string         `tfsdk:"allow_roles"`
-	Id         string           `tfsdk:"id"`
+	Id         types.String     `tfsdk:"id"`
 	Name       string           `tfsdk:"name"`
 	Options    TargetSSHOptions `tfsdk:"options"`
 }
 
 type TargetSSHOptions struct {
 	Host     string `tfsdk:"host"`
-	Port     int    `tfsdk:"port"`
+	Port     uint16 `tfsdk:"port"`
 	Username string `tfsdk:"username"`
 }
 

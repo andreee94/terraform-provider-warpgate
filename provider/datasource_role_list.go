@@ -91,7 +91,7 @@ func (d roleListDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		tflog.Trace(ctx, fmt.Sprintf("Found %v", role))
 
 		resourceState.Roles = append(resourceState.Roles, provider_models.Role{
-			Id:   role.Id.String(),
+			Id:   types.String{Value: role.Id.String()},
 			Name: role.Name,
 		})
 	}
