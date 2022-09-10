@@ -12,13 +12,16 @@ import (
 )
 
 var (
-	// these will be set by the goreleaser configuration
-	// to appropriate values for the compiled binary
-	version string = "0.1.0"
+// these will be set by the goreleaser configuration
+// to appropriate values for the compiled binary
+// version string = "0.1.0"
 
-	// goreleaser can also pass the specific commit if you want
-	// commit  string = ""
+// goreleaser can also pass the specific commit if you want
+// commit  string = ""
 )
+
+// Generate the Terraform provider documentation using `tfplugindocs`:
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
 
 func main() {
 	var debug bool
