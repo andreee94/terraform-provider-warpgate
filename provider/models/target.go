@@ -18,6 +18,8 @@ type TargetSSHOptions struct {
 	Host     string `tfsdk:"host"`
 	Port     uint16 `tfsdk:"port"`
 	Username string `tfsdk:"username"`
+	Password string `tfsdk:"password"`
+	AuthKind string `tfsdk:"auth_kind"`
 }
 
 /////////////////////////////////////////

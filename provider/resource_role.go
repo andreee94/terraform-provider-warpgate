@@ -254,7 +254,7 @@ func (r roleResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		return
 	}
 
-	if response.StatusCode() != 200 {
+	if response.StatusCode() != 204 {
 		resp.Diagnostics.AddError(
 			"Failed to delete role, wrong error code.",
 			fmt.Sprintf("Failed to delete role. (Error code: %d)", response.StatusCode()),

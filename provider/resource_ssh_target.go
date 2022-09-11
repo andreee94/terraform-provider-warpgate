@@ -3,7 +3,9 @@ package provider
 import (
 	"context"
 	"fmt"
+	"regexp"
 	provider_models "terraform-provider-warpgate/provider/models"
+	"terraform-provider-warpgate/provider/validators"
 	"terraform-provider-warpgate/warpgate"
 
 	"github.com/google/uuid"
@@ -50,22 +52,44 @@ func (t sshTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, dia
 				Required: true,
 			},
 			"options": {
-				Computed: true,
+				Computed: false,
+				Required: true,
 				Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
 					"host": {
 						Type:     types.StringType,
 						Computed: false,
 						Required: true,
+						Validators: []tfsdk.AttributeValidator{
+							validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+						},
 					},
 					"port": {
 						Type:     types.Int64Type,
 						Computed: false,
 						Required: true,
+						Validators: []tfsdk.AttributeValidator{
+							validators.IntBetween(1, 65535),
+						},
 					},
 					"username": {
 						Type:     types.StringType,
 						Computed: false,
 						Required: true,
+					},
+					"auth_kind": {
+						Type:     types.StringType,
+						Computed: false,
+						Required: true,
+						Validators: []tfsdk.AttributeValidator{
+							validators.StringIn([]string{"Password", "PublicKey"}, false),
+						},
+					},
+					"password": {
+						Type:      types.StringType,
+						Computed:  false,
+						Required:  false,
+						Optional:  true,
+						Sensitive: true,
 					},
 				}),
 			},
@@ -102,9 +126,7 @@ func (r sshTargetResource) Create(ctx context.Context, req resource.CreateReques
 			Host:     resourceState.Options.Host,
 			Port:     resourceState.Options.Port,
 			Username: resourceState.Options.Username,
-			Auth: warpgate.SSHTargetAuthSshTargetPublicKeyAuth{
-				Kind: "PublicKey",
-			},
+			Auth:     GenerateSshAuth(resourceState),
 		},
 	})
 
@@ -126,6 +148,8 @@ func (r sshTargetResource) Create(ctx context.Context, req resource.CreateReques
 
 	resourceState.Id = types.String{Value: response.JSON201.Id.String()}
 	resourceState.AllowRoles = response.JSON201.AllowRoles
+
+	// TODO maybe do not save the password into the state
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -169,13 +193,12 @@ func (r sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	var sshoptions warpgate.TargetOptionsTargetSSHOptions
-	err = mapstructure.Decode(response.JSON200.Options, &sshoptions)
+	sshoptions, err := ParseSshOptions(response.JSON200.Options)
 
-	if err != nil || sshoptions.Kind != "Ssh" {
+	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to read ssh target. Wrong options",
-			fmt.Sprintf("Failed to read ssh target %v. Wrong options type. ", response.JSON200),
+			fmt.Sprintf("Failed to read ssh target %v. Wrong options type. (Error: %v ", response.JSON200, err),
 		)
 		return
 	}
@@ -185,6 +208,7 @@ func (r sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, r
 	resourceState.Options.Host = sshoptions.Host
 	resourceState.Options.Port = sshoptions.Port
 	resourceState.Options.Username = sshoptions.Username
+	// resourceState.Options.AuthKind = sshoptions.Auth
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -217,9 +241,7 @@ func (r sshTargetResource) Update(ctx context.Context, req resource.UpdateReques
 			Host:     resourceState.Options.Host,
 			Port:     resourceState.Options.Port,
 			Username: resourceState.Options.Username,
-			Auth: warpgate.SSHTargetAuthSshTargetPublicKeyAuth{
-				Kind: "PublicKey",
-			},
+			Auth:     GenerateSshAuth(resourceState),
 		},
 	})
 
@@ -285,7 +307,7 @@ func (r sshTargetResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	if response.StatusCode() != 200 {
+	if response.StatusCode() != 204 {
 		resp.Diagnostics.AddError(
 			"Failed to delete ssh target, wrong error code.",
 			fmt.Sprintf("Failed to delete ssh target. (Error code: %d)", response.StatusCode()),
@@ -296,4 +318,59 @@ func (r sshTargetResource) Delete(ctx context.Context, req resource.DeleteReques
 
 func (r sshTargetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+func GenerateSshAuth(resourceState provider_models.TargetSsh) warpgate.SSHTargetAuth {
+	var auth warpgate.SSHTargetAuth
+
+	if resourceState.Options.AuthKind == "Password" {
+		auth = warpgate.SSHTargetAuthSshTargetPasswordAuth{
+			Password: resourceState.Options.Password,
+			Kind:     resourceState.Options.AuthKind,
+		}
+	} else if resourceState.Options.AuthKind == "PublicKey" {
+		auth = warpgate.SSHTargetAuthSshTargetPublicKeyAuth{
+			Kind: resourceState.Options.AuthKind,
+		}
+	}
+	return auth
+}
+
+func ParseSshOptions(options warpgate.TargetOptions) (*provider_models.TargetSSHOptions, error) {
+	var result provider_models.TargetSSHOptions
+	var sshoptions warpgate.TargetOptionsTargetSSHOptions
+	err := mapstructure.Decode(options, &sshoptions)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var kind struct {
+		Kind string `json:"kind"`
+	}
+	err = mapstructure.Decode(sshoptions.Auth, &kind)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result.Host = sshoptions.Host
+	result.Port = sshoptions.Port
+	result.Username = sshoptions.Username
+
+	if kind.Kind == "Password" {
+		var auth warpgate.SshTargetPasswordAuth
+
+		err = mapstructure.Decode(sshoptions.Auth, &auth)
+
+		if err != nil {
+			return nil, err
+		}
+
+		result.Password = result.Password
+	}
+
+	result.AuthKind = kind.Kind
+
+	return &result, err
 }
