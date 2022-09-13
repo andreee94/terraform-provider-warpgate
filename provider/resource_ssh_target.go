@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -29,15 +30,15 @@ type sshTargetResourceType struct{}
 func (t sshTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
-			"allow_roles": {
-				// Type: schema.TypeList,
-				// Elem: &schema.Schema{
-				// 	Type: schema.TypeString,
-				// },
-				Type:     types.ListType{ElemType: types.StringType},
-				Computed: true,
-				Required: false,
-			},
+			// "allow_roles": {
+			// 	// Type: schema.TypeList,
+			// 	// Elem: &schema.Schema{
+			// 	// 	Type: schema.TypeString,
+			// 	// },
+			// 	Type:     types.ListType{ElemType: types.StringType},
+			// 	Computed: true,
+			// 	Required: false,
+			// },
 			"id": {
 				Computed:            true,
 				MarkdownDescription: "Id of the ssh target in warpgate",
@@ -147,7 +148,7 @@ func (r sshTargetResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	resourceState.Id = types.String{Value: response.JSON201.Id.String()}
-	resourceState.AllowRoles = response.JSON201.AllowRoles
+	// resourceState.AllowRoles = response.JSON201.AllowRoles
 
 	// TODO maybe do not save the password into the state
 
@@ -203,7 +204,7 @@ func (r sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	resourceState.AllowRoles = response.JSON200.AllowRoles
+	// resourceState.AllowRoles = response.JSON200.AllowRoles
 	resourceState.Name = response.JSON200.Name
 	resourceState.Options.Host = sshoptions.Host
 	resourceState.Options.Port = sshoptions.Port
@@ -215,40 +216,40 @@ func (r sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, r
 }
 
 func (r sshTargetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var resourceState provider_models.TargetSsh
+	var resourcePlan provider_models.TargetSsh
 
-	diags := req.Plan.Get(ctx, &resourceState)
+	diags := req.Plan.Get(ctx, &resourcePlan)
 	resp.Diagnostics.Append(diags...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourcePlan.Id.Value)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to parse the id as uuid",
-			fmt.Sprintf("Failed to parse the id '%s' as uuid", resourceState.Id),
+			fmt.Sprintf("Failed to parse the id '%s' as uuid", resourcePlan.Id),
 		)
 		return
 	}
 
 	response, err := r.provider.client.UpdateTargetWithResponse(ctx, id_as_uuid, warpgate.UpdateTargetJSONBody{
-		Name: resourceState.Name,
+		Name: resourcePlan.Name,
 		Options: warpgate.TargetOptionsTargetSSHOptions{
 			Kind:     "Ssh",
-			Host:     resourceState.Options.Host,
-			Port:     resourceState.Options.Port,
-			Username: resourceState.Options.Username,
-			Auth:     GenerateSshAuth(resourceState),
+			Host:     resourcePlan.Options.Host,
+			Port:     resourcePlan.Options.Port,
+			Username: resourcePlan.Options.Username,
+			Auth:     GenerateSshAuth(resourcePlan),
 		},
 	})
 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to update ssh target",
-			fmt.Sprintf("Failed to update ssh target with id '%s'. (Error: %s)", resourceState.Id, err),
+			fmt.Sprintf("Failed to update ssh target with id '%s'. (Error: %s)", resourcePlan.Id, err),
 		)
 		return
 	}
@@ -262,18 +263,20 @@ func (r sshTargetResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	// probably unnecessary check
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourceState.Name {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourcePlan.Name {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
 				response.JSON200.Id, response.JSON200.Name,
-				resourceState.Id, resourceState.Name,
+				resourcePlan.Id, resourcePlan.Name,
 			),
 		)
 		return
 	}
 
-	diags = resp.State.Set(ctx, &resourceState)
+	tflog.Debug(ctx, fmt.Sprintf("Updating ssh_target state: %v", resourcePlan))
+
+	diags = resp.State.Set(ctx, &resourcePlan)
 	resp.Diagnostics.Append(diags...)
 }
 
@@ -325,7 +328,7 @@ func GenerateSshAuth(resourceState provider_models.TargetSsh) warpgate.SSHTarget
 
 	if resourceState.Options.AuthKind == "Password" {
 		auth = warpgate.SSHTargetAuthSshTargetPasswordAuth{
-			Password: resourceState.Options.Password,
+			Password: resourceState.Options.Password.String(),
 			Kind:     resourceState.Options.AuthKind,
 		}
 	} else if resourceState.Options.AuthKind == "PublicKey" {
@@ -367,7 +370,7 @@ func ParseSshOptions(options warpgate.TargetOptions) (*provider_models.TargetSSH
 			return nil, err
 		}
 
-		result.Password = result.Password
+		result.Password = types.String{Value: auth.Password}
 	}
 
 	result.AuthKind = kind.Kind

@@ -25,12 +25,12 @@ type intDefaultModifier struct {
 
 // Description returns a plain text description of the validator's behavior, suitable for a practitioner to understand its impact.
 func (m intDefaultModifier) Description(ctx context.Context) string {
-	return fmt.Sprintf("If value is not configured, defaults to %s", m.Default)
+	return fmt.Sprintf("If value is not configured, defaults to %d", m.Default)
 }
 
 // MarkdownDescription returns a markdown formatted description of the validator's behavior, suitable for a practitioner to understand its impact.
 func (m intDefaultModifier) MarkdownDescription(ctx context.Context) string {
-	return fmt.Sprintf("If value is not configured, defaults to `%s`", m.Default)
+	return fmt.Sprintf("If value is not configured, defaults to `%d`", m.Default)
 }
 
 // Modify runs the logic of the plan modifier.

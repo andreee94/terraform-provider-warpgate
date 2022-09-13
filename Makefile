@@ -1,4 +1,4 @@
-TEST?=$$(go list ./... | grep -v 'vendor')
+TEST?=terraform-provider-warpgate/provider #$$(go list ./... | grep -v 'vendor')
 # HOSTNAME=local
 # NAMESPACE=tr
 # NAME=warpgate
@@ -6,13 +6,16 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=andreee94
 NAME=warpgate
 BINARY=terraform-provider-${NAME}
-VERSION=0.0.1
+VERSION=0.0.2
 OS_ARCH=linux_amd64
 
 GOBIN=~/go/bin
 CLIENTGENFILE=warpgate/client.gen.go
 CLIENTCONFIG=warpgate/config.yaml
 WARPGATEOPENAPI=https://raw.githubusercontent.com/warp-tech/warpgate/main/warpgate-web/src/admin/lib/openapi-schema.json
+
+WARPGATE_SETUP_DATA_TEMP=/tmp/warpgate-setup/data
+WARPGATE_SETUP_DATA_ORIGINAL=./_scripts/data
 
 default: install
 
@@ -42,8 +45,16 @@ test:
 	# go test -i $(TEST) || exit 1                                                   
 	# echo $(TEST) | xargs -t -n4 go test $(TESTARGS) -timeout=60s -parallel=4                    
 
+testacc-setup:
+	. ./_scripts/testacc_setup.sh && env
+
+testacc-cleanup:
+	./_scripts/testacc_cleanup.sh
+
 testacc: 
-	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m   
+	. ./_scripts/testacc_setup.sh && \
+		(TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m || true) && \
+		./_scripts/testacc_cleanup.sh
 
 testcov:
 	go test -v ./... -cover -coverprofile=coverage.out
@@ -60,3 +71,11 @@ install-tfplugindocs:
 
 gen-doc: install-tfplugindocs
 	$(GOBIN)/tfplugindocs generate
+
+gen-warpgate-setup:
+	sudo rm -rf $(WARPGATE_SETUP_DATA_TEMP)
+	sudo rm -rf ./_scripts/data/*
+	mkdir -p ./_scripts/data/
+	docker run -it --rm -v $(WARPGATE_SETUP_DATA_TEMP):/data ghcr.io/warp-tech/warpgate:v0.6.1 setup
+	sudo cp -r $(WARPGATE_SETUP_DATA_TEMP)/* ./_scripts/data/
+	sudo rm -r $(WARPGATE_SETUP_DATA_TEMP)

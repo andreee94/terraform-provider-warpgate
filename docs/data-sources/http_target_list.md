@@ -24,7 +24,6 @@ description: |-
 
 Read-Only:
 
-- `allow_roles` (List of String)
 - `id` (String)
 - `name` (String)
 - `options` (Attributes) (see [below for nested schema](#nestedatt--targets--options))

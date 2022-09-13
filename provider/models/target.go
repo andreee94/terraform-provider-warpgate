@@ -8,32 +8,32 @@ import "github.com/hashicorp/terraform-plugin-framework/types"
 /////////////////////////////////////////
 
 type TargetSsh struct {
-	AllowRoles []string         `tfsdk:"allow_roles"`
-	Id         types.String     `tfsdk:"id"`
-	Name       string           `tfsdk:"name"`
-	Options    TargetSSHOptions `tfsdk:"options"`
+	// AllowRoles []string         `tfsdk:"allow_roles"`
+	Id      types.String     `tfsdk:"id"`
+	Name    string           `tfsdk:"name"`
+	Options TargetSSHOptions `tfsdk:"options"`
 }
 
 type TargetSSHOptions struct {
-	Host     string `tfsdk:"host"`
-	Port     uint16 `tfsdk:"port"`
-	Username string `tfsdk:"username"`
-	Password string `tfsdk:"password"`
-	AuthKind string `tfsdk:"auth_kind"`
+	Host     string       `tfsdk:"host"`
+	Port     uint16       `tfsdk:"port"`
+	Username string       `tfsdk:"username"`
+	Password types.String `tfsdk:"password"`
+	AuthKind string       `tfsdk:"auth_kind"`
 }
 
 /////////////////////////////////////////
 /////////////////////////////////////////
 
 type TargetHttp struct {
-	AllowRoles []string          `tfsdk:"allow_roles"`
-	Id         string            `tfsdk:"id"`
-	Name       string            `tfsdk:"name"`
-	Options    TargetHttpOptions `tfsdk:"options"`
+	// AllowRoles []string          `tfsdk:"allow_roles"`
+	Id      types.String      `tfsdk:"id"`
+	Name    string            `tfsdk:"name"`
+	Options TargetHttpOptions `tfsdk:"options"`
 }
 
 type TargetHttpOptions struct {
-	ExternalHost *string                    `tfsdk:"external_host"`
+	ExternalHost types.String               `tfsdk:"external_host"`
 	Url          string                     `tfsdk:"url"`
 	Tls          TargetTls                  `tfsdk:"tls"`
 	Headers      *TargetHttpOptions_Headers `tfsdk:"headers"`

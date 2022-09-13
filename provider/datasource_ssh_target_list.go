@@ -28,15 +28,15 @@ func (t sshTargetListDataSourceType) GetSchema(ctx context.Context) (tfsdk.Schem
 			"targets": {
 				Computed: true,
 				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"allow_roles": {
-						// Type: schema.TypeList,
-						// Elem: &schema.Schema{
-						// 	Type: schema.TypeString,
-						// },
-						Type:     types.ListType{ElemType: types.StringType},
-						Computed: true,
-						Required: false,
-					},
+					// "allow_roles": {
+					// 	// Type: schema.TypeList,
+					// 	// Elem: &schema.Schema{
+					// 	// 	Type: schema.TypeString,
+					// 	// },
+					// 	Type:     types.ListType{ElemType: types.StringType},
+					// 	Computed: true,
+					// 	Required: false,
+					// },
 					"id": {
 						Type:     types.StringType,
 						Computed: true,
@@ -132,9 +132,9 @@ func (d sshTargetListDataSource) Read(ctx context.Context, req datasource.ReadRe
 		}
 
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetSsh{
-			AllowRoles: target.AllowRoles,
-			Id:         types.String{Value: target.Id.String()},
-			Name:       target.Name,
+			// AllowRoles: target.AllowRoles,
+			Id:   types.String{Value: target.Id.String()},
+			Name: target.Name,
 			Options: provider_models.TargetSSHOptions{
 				Host:     sshoptions.Host,
 				Port:     sshoptions.Port,

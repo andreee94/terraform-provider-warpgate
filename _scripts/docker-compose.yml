@@ -1,0 +1,16 @@
+version: "3"
+
+# docker run --rm -it -v data:/data ghcr.io/warp-tech/warpgate setup
+
+services:
+    warpgate:
+        image: ghcr.io/warp-tech/warpgate:v0.6.1
+        volumes:
+          - ${warpgate_data}:/data
+        ports:
+            - 38888:8888
+        healthcheck:
+          test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8888' || exit 1
+          interval: 10s
+          timeout: 5s
+          retries: 5

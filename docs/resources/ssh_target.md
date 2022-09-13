@@ -18,20 +18,24 @@ description: |-
 ### Required
 
 - `name` (String)
+- `options` (Attributes) (see [below for nested schema](#nestedatt--options))
 
 ### Read-Only
 
-- `allow_roles` (List of String)
 - `id` (String) Id of the ssh target in warpgate
-- `options` (Attributes) (see [below for nested schema](#nestedatt--options))
 
 <a id="nestedatt--options"></a>
 ### Nested Schema for `options`
 
 Required:
 
+- `auth_kind` (String)
 - `host` (String)
 - `port` (Number)
 - `username` (String)
+
+Optional:
+
+- `password` (String, Sensitive)
 
 

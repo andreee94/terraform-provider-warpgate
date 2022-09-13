@@ -68,8 +68,8 @@ func (p *warpgateProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diag
 			"host": {
 				Type:        types.StringType,
 				Description: "The hostname of the warpgate server",
-				Optional:    false,
-				Required:    true,
+				Optional:    true,
+				Required:    false,
 				Computed:    false,
 				Validators: []tfsdk.AttributeValidator{
 					validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
@@ -90,24 +90,24 @@ func (p *warpgateProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diag
 			"username": {
 				Type:        types.StringType,
 				Description: "The username to login to the warpgate server",
-				Optional:    false,
+				Optional:    true,
+				Required:    false,
 				Computed:    false,
-				Required:    true,
 			},
 			"password": {
 				Type:        types.StringType,
 				Description: "The password to login to the warpgate server",
-				Optional:    false,
+				Optional:    true,
+				Required:    false,
 				Computed:    false,
 				Sensitive:   true,
-				Required:    true,
 			},
 			"insecure_skip_verify": {
 				Type:        types.BoolType,
 				Description: "If to skip the verification of the tls certificate",
 				Optional:    true,
-				Computed:    false,
 				Required:    false,
+				Computed:    false,
 				PlanModifiers: []tfsdk.AttributePlanModifier{
 					modifiers.BoolDefault(false),
 				},
@@ -141,9 +141,9 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 	var password string
 	var insecureSkipVerify bool
 
-	if !checkForUnknowsInConfig(&config, resp) {
-		return
-	}
+	// if !checkForUnknowsInConfig(&config, resp) {
+	// 	return
+	// }
 
 	if config.Host.Null {
 		host = os.Getenv("WARPGATE_HOST")
@@ -215,7 +215,8 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to login",
+			// "Unable to login",
+			fmt.Sprintf("Unable to login, %s:%s@%s:%d", username, password, host, port),
 			err.Error(),
 		)
 		return
@@ -253,8 +254,9 @@ func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureRespo
 
 func (p *warpgateProvider) GetResources(_ context.Context) (map[string]provider.ResourceType, diag.Diagnostics) {
 	return map[string]provider.ResourceType{
-		"warpgate_role":       roleResourceType{},
-		"warpgate_ssh_target": sshTargetResourceType{},
+		"warpgate_role":        roleResourceType{},
+		"warpgate_ssh_target":  sshTargetResourceType{},
+		"warpgate_http_target": httpTargetResourceType{},
 		// "warpgate_port_forwarded": resourcePortForwardedType{},
 	}, nil
 }

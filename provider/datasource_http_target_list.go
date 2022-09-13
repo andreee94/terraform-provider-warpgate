@@ -28,11 +28,11 @@ func (t httpTargetListDataSourceType) GetSchema(ctx context.Context) (tfsdk.Sche
 			"targets": {
 				Computed: true,
 				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"allow_roles": {
-						Type:     types.ListType{ElemType: types.StringType},
-						Computed: true,
-						Required: false,
-					},
+					// "allow_roles": {
+					// 	Type:     types.ListType{ElemType: types.StringType},
+					// 	Computed: true,
+					// 	Required: false,
+					// },
 					"id": {
 						Type:     types.StringType,
 						Computed: true,
@@ -153,11 +153,11 @@ func (d httpTargetListDataSource) Read(ctx context.Context, req datasource.ReadR
 		}
 
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetHttp{
-			AllowRoles: target.AllowRoles,
-			Id:         target.Id.String(),
-			Name:       target.Name,
+			// AllowRoles: target.AllowRoles,
+			Id:   types.String{Value: target.Id.String()},
+			Name: target.Name,
 			Options: provider_models.TargetHttpOptions{
-				ExternalHost: httpoptions.ExternalHost,
+				ExternalHost: types.String{Value: *httpoptions.ExternalHost},
 				Url:          httpoptions.Url,
 				Headers:      headers,
 				Tls: provider_models.TargetTls{
