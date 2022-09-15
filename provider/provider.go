@@ -10,8 +10,10 @@ import (
 	"terraform-provider-warpgate/provider/validators"
 	"terraform-provider-warpgate/warpgate"
 
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -25,41 +27,51 @@ import (
 //			}
 //		}
 //	}
-func New() func() provider.Provider {
+func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &warpgateProvider{}
+		return &warpgateProvider{
+			version: version,
+		}
 	}
 }
 
-func convertProviderType(in provider.Provider) (warpgateProvider, diag.Diagnostics) {
-	var diags diag.Diagnostics
+// func convertProviderType(in provider.Provider) (warpgateProvider, diag.Diagnostics) {
+// 	var diags diag.Diagnostics
 
-	p, ok := in.(*warpgateProvider)
+// 	p, ok := in.(*warpgateProvider)
 
-	if !ok {
-		diags.AddError(
-			"Unexpected Provider Instance Type",
-			fmt.Sprintf("While creating the data source or resource, an unexpected provider type (%T) was received. This is always a bug in the provider code and should be reported to the provider developers.", p),
-		)
-		return warpgateProvider{}, diags
-	}
+// 	if !ok {
+// 		diags.AddError(
+// 			"Unexpected Provider Instance Type",
+// 			fmt.Sprintf("While creating the data source or resource, an unexpected provider type (%T) was received. This is always a bug in the provider code and should be reported to the provider developers.", p),
+// 		)
+// 		return warpgateProvider{}, diags
+// 	}
 
-	if p == nil {
-		diags.AddError(
-			"Unexpected Provider Instance Type",
-			"While creating the data source or resource, an unexpected empty provider instance was received. This is always a bug in the provider code and should be reported to the provider developers.",
-		)
-		return warpgateProvider{}, diags
-	}
+// 	if p == nil {
+// 		diags.AddError(
+// 			"Unexpected Provider Instance Type",
+// 			"While creating the data source or resource, an unexpected empty provider instance was received. This is always a bug in the provider code and should be reported to the provider developers.",
+// 		)
+// 		return warpgateProvider{}, diags
+// 	}
 
-	return *p, diags
-}
+// 	return *p, diags
+// }
+
+var _ provider.Provider = &warpgateProvider{}
+var _ provider.ProviderWithMetadata = &warpgateProvider{}
 
 type warpgateProvider struct {
 	configured bool
-	// version    string
-	client *warpgate.WarpgateClient
+	version    string
+	client     *warpgate.WarpgateClient
 	// router     *warpgate.warpgateRouter
+}
+
+func (p *warpgateProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "warpgate"
+	resp.Version = p.version
 }
 
 func (p *warpgateProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
@@ -141,9 +153,9 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 	var password string
 	var insecureSkipVerify bool
 
-	// if !checkForUnknowsInConfig(&config, resp) {
-	// 	return
-	// }
+	if !checkForUnknowsInConfig(&config, resp) {
+		return
+	}
 
 	if config.Host.Null {
 		host = os.Getenv("WARPGATE_HOST")
@@ -223,6 +235,9 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	p.configured = true
+
+	resp.DataSourceData = p
+	resp.ResourceData = p
 }
 
 func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureResponse) bool {
@@ -252,20 +267,39 @@ func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureRespo
 	return true
 }
 
-func (p *warpgateProvider) GetResources(_ context.Context) (map[string]provider.ResourceType, diag.Diagnostics) {
-	return map[string]provider.ResourceType{
-		"warpgate_role":        roleResourceType{},
-		"warpgate_ssh_target":  sshTargetResourceType{},
-		"warpgate_http_target": httpTargetResourceType{},
-		// "warpgate_port_forwarded": resourcePortForwardedType{},
-	}, nil
+func (p *warpgateProvider) Resources(ctx context.Context) []func() resource.Resource {
+	return []func() resource.Resource{
+		NewHttpTargetResource,
+		NewSshTargetResource,
+		NewRoleResource,
+		NewTargetRolesResource,
+	}
 }
 
-func (p *warpgateProvider) GetDataSources(_ context.Context) (map[string]provider.DataSourceType, diag.Diagnostics) {
-	return map[string]provider.DataSourceType{
-		"warpgate_ssh_target_list":  sshTargetListDataSourceType{},
-		"warpgate_http_target_list": httpTargetListDataSourceType{},
-		"warpgate_role_list":        roleListDataSourceType{},
-		"warpgate_sshkey_list":      sshkeyListDataSourceType{},
-	}, nil
+func (p *warpgateProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{
+		NewRoleListDataSource,
+		NewSshkeyListDataSource,
+		NewSshTargetListDataSource,
+		NewHttpTargetListDataSource,
+	}
 }
+
+// func (p *warpgateProvider) GetResources(_ context.Context) (map[string]provider.ResourceType, diag.Diagnostics) {
+// 	return map[string]provider.ResourceType{
+// 		"warpgate_role":         roleResourceType{},
+// 		"warpgate_ssh_target":   sshTargetResourceType{},
+// 		"warpgate_http_target":  httpTargetResourceType{},
+// 		"warpgate_target_roles": targetRolesResourceType{},
+// 		// "warpgate_port_forwarded": resourcePortForwardedType{},
+// 	}, nil
+// }
+
+// func (p *warpgateProvider) GetDataSources(_ context.Context) (map[string]provider.DataSourceType, diag.Diagnostics) {
+// 	return map[string]provider.DataSourceType{
+// 		"warpgate_ssh_target_list":  sshTargetListDataSourceType{},
+// 		"warpgate_http_target_list": httpTargetListDataSourceType{},
+// 		"warpgate_role_list":        roleListDataSourceType{},
+// 		"warpgate_sshkey_list":      sshkeyListDataSourceType{},
+// 	}, nil
+// }

@@ -46,7 +46,7 @@ test:
 	# echo $(TEST) | xargs -t -n4 go test $(TESTARGS) -timeout=60s -parallel=4                    
 
 testacc-setup:
-	. ./_scripts/testacc_setup.sh && env
+	. ./_scripts/testacc_setup.sh 
 
 testacc-cleanup:
 	./_scripts/testacc_cleanup.sh

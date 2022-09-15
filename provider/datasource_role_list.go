@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -15,26 +15,32 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ provider.DataSourceType = roleListDataSourceType{}
-var _ datasource.DataSource = roleListDataSource{}
+// var _ provider.DataSourceType = roleListDataSourceType{}
+var _ datasource.DataSource = &roleListDataSource{}
 
-type roleListDataSourceType struct{}
+// type roleListDataSourceType struct{}
 
-func (t roleListDataSourceType) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
+func NewRoleListDataSource() datasource.DataSource {
+	return &roleListDataSource{}
+}
+
+func (r *roleListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
+			"id": { // required for acceptance testing
+				Type:     types.StringType,
+				Computed: true,
+			},
 			"roles": {
 				Computed: true,
 				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
 					"id": {
 						Type:     types.StringType,
 						Computed: true,
-						Required: false,
 					},
 					"name": {
 						Type:     types.StringType,
 						Computed: true,
-						Required: false,
 					},
 				}),
 			},
@@ -42,20 +48,55 @@ func (t roleListDataSourceType) GetSchema(ctx context.Context) (tfsdk.Schema, di
 	}, nil
 }
 
-func (t roleListDataSourceType) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
-	provider, diags := convertProviderType(in)
+// func (t roleListDataSourceType) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
+// 	provider, diags := convertProviderType(in)
 
-	return roleListDataSource{
-		provider: provider,
-	}, diags
-}
+// 	return roleListDataSource{
+// 		provider: provider,
+// 	}, diags
+// }
 
 type roleListDataSource struct {
-	provider warpgateProvider
+	provider *warpgateProvider
 }
 
-func (d roleListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (d *roleListDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_role_list"
+}
+
+func (d *roleListDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*warpgateProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *warpgateProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	d.provider = provider
+
+}
+
+func (d *roleListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var resourceState struct {
+		Id    types.String           `tfsdk:"id"`
 		Roles []provider_models.Role `tfsdk:"roles"`
 	}
 
@@ -66,7 +107,7 @@ func (d roleListDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
-	response, err := d.provider.client.GetTargetsWithResponse(ctx)
+	response, err := d.provider.client.GetRolesWithResponse(ctx)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -95,6 +136,10 @@ func (d roleListDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			Name: role.Name,
 		})
 	}
+
+	randomUUID, _ := uuid.NewRandom()
+	resourceState.Id = types.String{Value: randomUUID.String()}
+
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
 }

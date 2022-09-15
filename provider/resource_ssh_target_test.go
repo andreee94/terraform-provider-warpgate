@@ -10,6 +10,7 @@ import (
 )
 
 func TestAccSshTargetPublicKeyResource(t *testing.T) {
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -27,6 +28,10 @@ func TestAccSshTargetPublicKeyResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.username"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.auth_kind"),
 					resource.TestCheckNoResourceAttr("warpgate_ssh_target.test", "options.password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.auth_kind", "PublicKey"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.username", "root"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.port", "22"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
 			},
@@ -42,6 +47,10 @@ func TestAccSshTargetPublicKeyResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.username"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.auth_kind"),
 					resource.TestCheckNoResourceAttr("warpgate_ssh_target.test", "options.password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.auth_kind", "PublicKey"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.username", "root"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.port", "22"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
 			},
@@ -68,6 +77,11 @@ func TestAccSshTargetPasswordResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.username"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.auth_kind"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.auth_kind", "Password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.password", "A12345678"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.username", "root"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.port", "22"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
 			},
@@ -83,6 +97,11 @@ func TestAccSshTargetPasswordResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.username"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.auth_kind"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.auth_kind", "Password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.password", "A12345678"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.username", "root"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.port", "22"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
 			},
@@ -109,6 +128,11 @@ func TestAccSshTargetMixedAuthResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.username"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.auth_kind"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.auth_kind", "Password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.password", "A12345678"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.username", "root"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.port", "22"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
 			},
@@ -124,6 +148,10 @@ func TestAccSshTargetMixedAuthResource(t *testing.T) {
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.username"),
 					resource.TestCheckResourceAttrSet("warpgate_ssh_target.test", "options.auth_kind"),
 					resource.TestCheckNoResourceAttr("warpgate_ssh_target.test", "options.password"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.auth_kind", "PublicKey"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.username", "root"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "options.port", "22"),
+					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
 			},
@@ -194,7 +222,7 @@ resource "warpgate_ssh_target" "test" {
 		port = 22
 		username = "root"
 		auth_kind = "Password"
-		password = "strong_password"
+		password = "A12345678"
 	}
 }
 `, name, host)

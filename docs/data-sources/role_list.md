@@ -17,6 +17,7 @@ description: |-
 
 ### Read-Only
 
+- `id` (String) The ID of this resource.
 - `roles` (Attributes List) (see [below for nested schema](#nestedatt--roles))
 
 <a id="nestedatt--roles"></a>

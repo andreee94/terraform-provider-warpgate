@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/deepmap/oapi-codegen v1.11.1-0.20220908201945-d1a63c702fd0
-	github.com/hashicorp/terraform-plugin-framework v0.11.1
+	github.com/hashicorp/terraform-plugin-framework v0.12.0
 	github.com/hashicorp/terraform-plugin-go v0.14.0
 	github.com/stretchr/testify v1.8.0 // indirect
 )
@@ -50,7 +50,7 @@ require (
 require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-hclog v1.2.1 // indirect
 	github.com/hashicorp/go-plugin v1.4.4 // indirect

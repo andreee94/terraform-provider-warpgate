@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -15,14 +15,18 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ provider.DataSourceType = sshkeyListDataSourceType{}
-var _ datasource.DataSource = sshkeyListDataSource{}
+// var _ provider.DataSourceType = sshkeyListDataSourceType{}
+var _ datasource.DataSource = &sshkeyListDataSource{}
 
-type sshkeyListDataSourceType struct{}
+// type sshkeyListDataSourceType struct{}
 
-func (t sshkeyListDataSourceType) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
+func (d *sshkeyListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
+			"id": { // required for acceptance testing
+				Type:     types.StringType,
+				Computed: true,
+			},
 			"kind": {
 				Type:     types.StringType,
 				Computed: false,
@@ -35,12 +39,10 @@ func (t sshkeyListDataSourceType) GetSchema(ctx context.Context) (tfsdk.Schema, 
 					"kind": {
 						Type:     types.StringType,
 						Computed: true,
-						Required: false,
 					},
 					"public_key_base64": {
 						Type:     types.StringType,
 						Computed: true,
-						Required: false,
 					},
 				}),
 			},
@@ -48,20 +50,58 @@ func (t sshkeyListDataSourceType) GetSchema(ctx context.Context) (tfsdk.Schema, 
 	}, nil
 }
 
-func (t sshkeyListDataSourceType) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
-	provider, diags := convertProviderType(in)
-
-	return sshkeyListDataSource{
-		provider: provider,
-	}, diags
+func NewSshkeyListDataSource() datasource.DataSource {
+	return &sshkeyListDataSource{}
 }
+
+// func (d *sshkeyListDataSource) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
+// 	provider, diags := convertProviderType(in)
+
+// 	return sshkeyListDataSource{
+// 		provider: provider,
+// 	}, diags
+// }
 
 type sshkeyListDataSource struct {
-	provider warpgateProvider
+	provider *warpgateProvider
 }
 
-func (d sshkeyListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (d *sshkeyListDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_sshkey_list"
+}
+
+func (d *sshkeyListDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*warpgateProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *warpgateProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	d.provider = provider
+
+}
+func (d *sshkeyListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var resourceState struct {
+		Id      types.String             `tfsdk:"id"`
 		Kind    string                   `tfsdk:"kind"`
 		SshKeys []provider_models.SshKey `tfsdk:"sshkeys"`
 	}
@@ -106,6 +146,10 @@ func (d sshkeyListDataSource) Read(ctx context.Context, req datasource.ReadReque
 			PublicKeyBase64: sshkey.PublicKeyBase64,
 		})
 	}
+
+	randomUUID, _ := uuid.NewRandom()
+	resourceState.Id = types.String{Value: randomUUID.String()}
+
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
 }

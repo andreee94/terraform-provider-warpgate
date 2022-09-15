@@ -13,7 +13,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -21,24 +20,21 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ provider.ResourceType = sshTargetResourceType{}
-var _ resource.Resource = sshTargetResource{}
-var _ resource.ResourceWithImportState = sshTargetResource{}
+// var _ provider.ResourceType = sshTargetResourceType{}
+var _ resource.Resource = &sshTargetResource{}
+var _ resource.ResourceWithImportState = &sshTargetResource{}
 
-type sshTargetResourceType struct{}
+// type sshTargetResourceType struct{}
 
-func (t sshTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
+func (r *sshTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
-			// "allow_roles": {
-			// 	// Type: schema.TypeList,
-			// 	// Elem: &schema.Schema{
-			// 	// 	Type: schema.TypeString,
-			// 	// },
-			// 	Type:     types.ListType{ElemType: types.StringType},
-			// 	Computed: true,
-			// 	Required: false,
-			// },
+			"allow_roles": {
+				Type:     types.SetType{ElemType: types.StringType},
+				Computed: true,
+				Required: false,
+				Optional: true,
+			},
 			"id": {
 				Computed:            true,
 				MarkdownDescription: "Id of the ssh target in warpgate",
@@ -82,7 +78,7 @@ func (t sshTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, dia
 						Computed: false,
 						Required: true,
 						Validators: []tfsdk.AttributeValidator{
-							validators.StringIn([]string{"Password", "PublicKey"}, false),
+							validators.StringIn([]string{string(warpgate.Password), string(warpgate.PublicKey)}, false),
 						},
 					},
 					"password": {
@@ -98,19 +94,56 @@ func (t sshTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, dia
 	}, nil
 }
 
-func (t sshTargetResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
-	provider, diags := convertProviderType(in)
+// func (t sshTargetResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
+// 	provider, diags := convertProviderType(in)
 
-	return sshTargetResource{
-		provider: provider,
-	}, diags
+// 	return sshTargetResource{
+// 		provider: provider,
+// 	}, diags
+// }
+
+func NewSshTargetResource() resource.Resource {
+	return &sshTargetResource{}
+}
+
+func (r *sshTargetResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_ssh_target"
+}
+
+func (r *sshTargetResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*warpgateProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *warpgateProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	r.provider = provider
 }
 
 type sshTargetResource struct {
-	provider warpgateProvider
+	provider *warpgateProvider
 }
 
-func (r sshTargetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *sshTargetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var resourceState provider_models.TargetSsh
 
 	diags := req.Config.Get(ctx, &resourceState)
@@ -148,15 +181,13 @@ func (r sshTargetResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	resourceState.Id = types.String{Value: response.JSON201.Id.String()}
-	// resourceState.AllowRoles = response.JSON201.AllowRoles
-
-	// TODO maybe do not save the password into the state
+	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON201.AllowRoles)
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var resourceState provider_models.TargetSsh
 
 	diags := req.State.Get(ctx, &resourceState)
@@ -186,6 +217,15 @@ func (r sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
+	if response.StatusCode() == 404 {
+		resp.Diagnostics.AddWarning(
+			"Failed to read ssh target, resource not found. Removing from the state.",
+			fmt.Sprintf("Failed to read ssh target. (Error code: %d)", response.StatusCode()),
+		)
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	if response.StatusCode() != 200 {
 		resp.Diagnostics.AddError(
 			"Failed to read ssh target, wrong error code.",
@@ -204,18 +244,21 @@ func (r sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	// resourceState.AllowRoles = response.JSON200.AllowRoles
+	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
 	resourceState.Name = response.JSON200.Name
 	resourceState.Options.Host = sshoptions.Host
 	resourceState.Options.Port = sshoptions.Port
 	resourceState.Options.Username = sshoptions.Username
-	// resourceState.Options.AuthKind = sshoptions.Auth
+	resourceState.Options.AuthKind = sshoptions.AuthKind
+	// if resourceState.Options.AuthKind == string(warpgate.Password) {
+	// 	resourceState.Options.Password = sshoptions.Password
+	// }
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r sshTargetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *sshTargetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var resourcePlan provider_models.TargetSsh
 
 	diags := req.Plan.Get(ctx, &resourcePlan)
@@ -271,8 +314,8 @@ func (r sshTargetResource) Update(ctx context.Context, req resource.UpdateReques
 				resourcePlan.Id, resourcePlan.Name,
 			),
 		)
-		return
 	}
+	resourcePlan.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
 
 	tflog.Debug(ctx, fmt.Sprintf("Updating ssh_target state: %v", resourcePlan))
 
@@ -280,7 +323,7 @@ func (r sshTargetResource) Update(ctx context.Context, req resource.UpdateReques
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r sshTargetResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *sshTargetResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var resourceState provider_models.TargetSsh
 
 	diags := req.State.Get(ctx, &resourceState)
@@ -319,19 +362,19 @@ func (r sshTargetResource) Delete(ctx context.Context, req resource.DeleteReques
 	}
 }
 
-func (r sshTargetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *sshTargetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
 func GenerateSshAuth(resourceState provider_models.TargetSsh) warpgate.SSHTargetAuth {
 	var auth warpgate.SSHTargetAuth
 
-	if resourceState.Options.AuthKind == "Password" {
+	if resourceState.Options.AuthKind == string(warpgate.Password) {
 		auth = warpgate.SSHTargetAuthSshTargetPasswordAuth{
-			Password: resourceState.Options.Password.String(),
+			Password: resourceState.Options.Password.Value,
 			Kind:     resourceState.Options.AuthKind,
 		}
-	} else if resourceState.Options.AuthKind == "PublicKey" {
+	} else if resourceState.Options.AuthKind == string(warpgate.PublicKey) {
 		auth = warpgate.SSHTargetAuthSshTargetPublicKeyAuth{
 			Kind: resourceState.Options.AuthKind,
 		}
@@ -361,7 +404,7 @@ func ParseSshOptions(options warpgate.TargetOptions) (*provider_models.TargetSSH
 	result.Port = sshoptions.Port
 	result.Username = sshoptions.Username
 
-	if kind.Kind == "Password" {
+	if kind.Kind == string(warpgate.Password) {
 		var auth warpgate.SshTargetPasswordAuth
 
 		err = mapstructure.Decode(sshoptions.Auth, &auth)

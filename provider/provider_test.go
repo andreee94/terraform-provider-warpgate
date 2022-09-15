@@ -13,7 +13,7 @@ import (
 // CLI command executed to create a provider server to which the CLI can
 // reattach.
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-	"warpgate": providerserver.NewProtocol6WithError(New()()),
+	"warpgate": providerserver.NewProtocol6WithError(New("0.0.2")()),
 }
 
 func testAccPreCheck(t *testing.T) {

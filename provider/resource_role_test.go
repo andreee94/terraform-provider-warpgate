@@ -8,6 +8,7 @@ import (
 )
 
 func TestAccRoleResource(t *testing.T) {
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -19,6 +20,7 @@ func TestAccRoleResource(t *testing.T) {
 					resource.TestCheckResourceAttr("warpgate_role.test", "name", "one"),
 					resource.TestCheckResourceAttrSet("warpgate_role.test", "id"),
 					resource.TestCheckResourceAttrSet("warpgate_role.test", "name"),
+					testCheckFuncValidUUID("warpgate_target_roles.test", "id"),
 				),
 			},
 			// Update and Read testing
@@ -28,6 +30,7 @@ func TestAccRoleResource(t *testing.T) {
 					resource.TestCheckResourceAttr("warpgate_role.test", "name", "two"),
 					resource.TestCheckResourceAttrSet("warpgate_role.test", "id"),
 					resource.TestCheckResourceAttrSet("warpgate_role.test", "name"),
+					testCheckFuncValidUUID("warpgate_target_roles.test", "id"),
 				),
 			},
 			// Delete testing automatically occurs in TestCase

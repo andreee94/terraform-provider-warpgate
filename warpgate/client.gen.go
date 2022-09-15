@@ -21,10 +21,10 @@ import (
 
 // Defines values for CredentialKind.
 const (
-	Otp             CredentialKind = "Otp"
 	Password        CredentialKind = "Password"
 	PublicKey       CredentialKind = "PublicKey"
 	Sso             CredentialKind = "Sso"
+	Totp            CredentialKind = "Totp"
 	WebUserApproval CredentialKind = "WebUserApproval"
 )
 
@@ -1238,7 +1238,7 @@ func NewGetRecordingRequest(server string, id openapi_types.UUID) (*http.Request
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1272,7 +1272,7 @@ func NewDeleteRoleRequest(server string, id openapi_types.UUID) (*http.Request, 
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1306,7 +1306,7 @@ func NewGetRoleRequest(server string, id openapi_types.UUID) (*http.Request, err
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1351,7 +1351,7 @@ func NewUpdateRoleRequestWithBody(server string, id openapi_types.UUID, contentT
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1576,7 +1576,7 @@ func NewGetSessionRequest(server string, id openapi_types.UUID) (*http.Request, 
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1610,7 +1610,7 @@ func NewCloseSessionRequest(server string, id openapi_types.UUID) (*http.Request
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1644,7 +1644,7 @@ func NewGetSessionRecordingsRequest(server string, id openapi_types.UUID) (*http
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1705,7 +1705,7 @@ func NewDeleteSshKnownHostRequest(server string, id openapi_types.UUID) (*http.R
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1833,7 +1833,7 @@ func NewDeleteTargetRequest(server string, id openapi_types.UUID) (*http.Request
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1867,7 +1867,7 @@ func NewGetTargetRequest(server string, id openapi_types.UUID) (*http.Request, e
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1912,7 +1912,7 @@ func NewUpdateTargetRequestWithBody(server string, id openapi_types.UUID, conten
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1948,7 +1948,7 @@ func NewGetTargetRolesRequest(server string, id openapi_types.UUID) (*http.Reque
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1982,14 +1982,14 @@ func NewDeleteTargetRoleRequest(server string, id openapi_types.UUID, roleId ope
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "role_id", runtime.ParamLocationPath, roleId)
+	pathParam1, err = runtime.StyleParamWithLocation("simple", true, "role_id", runtime.ParamLocationPath, roleId)
 	if err != nil {
 		return nil, err
 	}
@@ -2023,14 +2023,14 @@ func NewAddTargetRoleRequest(server string, id openapi_types.UUID, roleId openap
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "role_id", runtime.ParamLocationPath, roleId)
+	pathParam1, err = runtime.StyleParamWithLocation("simple", true, "role_id", runtime.ParamLocationPath, roleId)
 	if err != nil {
 		return nil, err
 	}
@@ -2131,7 +2131,7 @@ func NewDeleteTicketRequest(server string, id openapi_types.UUID) (*http.Request
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -2232,7 +2232,7 @@ func NewDeleteUserRequest(server string, id openapi_types.UUID) (*http.Request, 
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -2266,7 +2266,7 @@ func NewGetUserRequest(server string, id openapi_types.UUID) (*http.Request, err
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -2311,7 +2311,7 @@ func NewUpdateUserRequestWithBody(server string, id openapi_types.UUID, contentT
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -2347,7 +2347,7 @@ func NewGetUserRolesRequest(server string, id openapi_types.UUID) (*http.Request
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -2381,14 +2381,14 @@ func NewDeleteUserRoleRequest(server string, id openapi_types.UUID, roleId opena
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "role_id", runtime.ParamLocationPath, roleId)
+	pathParam1, err = runtime.StyleParamWithLocation("simple", true, "role_id", runtime.ParamLocationPath, roleId)
 	if err != nil {
 		return nil, err
 	}
@@ -2422,14 +2422,14 @@ func NewAddUserRoleRequest(server string, id openapi_types.UUID, roleId openapi_
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", true, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "role_id", runtime.ParamLocationPath, roleId)
+	pathParam1, err = runtime.StyleParamWithLocation("simple", true, "role_id", runtime.ParamLocationPath, roleId)
 	if err != nil {
 		return nil, err
 	}

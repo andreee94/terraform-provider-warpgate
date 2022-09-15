@@ -13,7 +13,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -21,13 +20,14 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ provider.ResourceType = httpTargetResourceType{}
-var _ resource.Resource = httpTargetResource{}
-var _ resource.ResourceWithImportState = httpTargetResource{}
 
-type httpTargetResourceType struct{}
+// var _ provider.ResourceType = httpTargetResourceType{}
+var _ resource.Resource = &httpTargetResource{}
+var _ resource.ResourceWithImportState = &httpTargetResource{}
 
-func (t httpTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
+// type httpTargetResourceType struct{}
+
+func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			// "allow_roles": {
@@ -91,6 +91,9 @@ func (t httpTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, di
 								Computed: false,
 								Required: true,
 								Optional: false,
+								Validators: []tfsdk.AttributeValidator{
+									validators.StringIn([]string{string(warpgate.Disabled), string(warpgate.Preferred), string(warpgate.Required)}, false),
+								},
 							},
 							"verify": {
 								Type:     types.BoolType,
@@ -106,19 +109,56 @@ func (t httpTargetResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, di
 	}, nil
 }
 
-func (t httpTargetResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
-	provider, diags := convertProviderType(in)
+// func (t httpTargetResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
+// 	provider, diags := convertProviderType(in)
 
-	return httpTargetResource{
-		provider: provider,
-	}, diags
+//		return httpTargetResource{
+//			provider: provider,
+//		}, diags
+//	}
+
+func NewHttpTargetResource() resource.Resource {
+	return &httpTargetResource{}
+}
+
+func (r *httpTargetResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_http_target"
+}
+
+func (r *httpTargetResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*warpgateProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *warpgateProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	r.provider = provider
 }
 
 type httpTargetResource struct {
-	provider warpgateProvider
+	provider *warpgateProvider
 }
 
-func (r httpTargetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *httpTargetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var resourceState provider_models.TargetHttp
 
 	diags := req.Config.Get(ctx, &resourceState)
@@ -167,7 +207,7 @@ func (r httpTargetResource) Create(ctx context.Context, req resource.CreateReque
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r httpTargetResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *httpTargetResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var resourceState provider_models.TargetHttp
 
 	diags := req.State.Get(ctx, &resourceState)
@@ -194,6 +234,15 @@ func (r httpTargetResource) Read(ctx context.Context, req resource.ReadRequest, 
 			"Failed to read http target",
 			fmt.Sprintf("Failed to read http target with id '%s'. (Error: %s)", resourceState.Id, err),
 		)
+		return
+	}
+
+	if response.StatusCode() == 404 {
+		resp.Diagnostics.AddWarning(
+			"Failed to read http target, resource not found. Removing from the state.",
+			fmt.Sprintf("Failed to read http target. (Error code: %d)", response.StatusCode()),
+		)
+		resp.State.RemoveResource(ctx)
 		return
 	}
 
@@ -226,7 +275,7 @@ func (r httpTargetResource) Read(ctx context.Context, req resource.ReadRequest, 
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r httpTargetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *httpTargetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var resourcePlan provider_models.TargetHttp
 
 	diags := req.Plan.Get(ctx, &resourcePlan)
@@ -304,7 +353,7 @@ func (r httpTargetResource) Update(ctx context.Context, req resource.UpdateReque
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r httpTargetResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *httpTargetResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var resourceState provider_models.TargetHttp
 
 	diags := req.State.Get(ctx, &resourceState)
@@ -343,7 +392,7 @@ func (r httpTargetResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 }
 
-func (r httpTargetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *httpTargetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 

@@ -17,6 +17,7 @@ description: |-
 
 ### Read-Only
 
+- `id` (String) The ID of this resource.
 - `targets` (Attributes List) (see [below for nested schema](#nestedatt--targets))
 
 <a id="nestedatt--targets"></a>
@@ -24,6 +25,7 @@ description: |-
 
 Read-Only:
 
+- `allow_roles` (Set of String)
 - `id` (String)
 - `name` (String)
 - `options` (Attributes) (see [below for nested schema](#nestedatt--targets--options))

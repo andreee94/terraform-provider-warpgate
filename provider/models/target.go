@@ -8,10 +8,10 @@ import "github.com/hashicorp/terraform-plugin-framework/types"
 /////////////////////////////////////////
 
 type TargetSsh struct {
-	// AllowRoles []string         `tfsdk:"allow_roles"`
-	Id      types.String     `tfsdk:"id"`
-	Name    string           `tfsdk:"name"`
-	Options TargetSSHOptions `tfsdk:"options"`
+	AllowRoles types.Set        `tfsdk:"allow_roles"`
+	Id         types.String     `tfsdk:"id"`
+	Name       string           `tfsdk:"name"`
+	Options    TargetSSHOptions `tfsdk:"options"`
 }
 
 type TargetSSHOptions struct {

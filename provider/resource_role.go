@@ -10,20 +10,19 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
-	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ provider.ResourceType = roleResourceType{}
-var _ resource.Resource = roleResource{}
-var _ resource.ResourceWithImportState = roleResource{}
+// var _ provider.ResourceType = roleResourceType{}
+var _ resource.Resource = &roleResource{}
+var _ resource.ResourceWithImportState = &roleResource{}
 
-type roleResourceType struct{}
+// type roleResourceType struct{}
 
-func (t roleResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
+func (r *roleResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"name": {
@@ -43,19 +42,57 @@ func (t roleResourceType) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 	}, nil
 }
 
-func (t roleResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
-	provider, diags := convertProviderType(in)
+func NewRoleResource() resource.Resource {
+	return &roleResource{}
+}
 
-	return roleResource{
-		provider: provider,
-	}, diags
+func (r *roleResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_role"
+}
+
+// func (r *roleResource) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
+// 	provider, diags := convertProviderType(in)
+
+// 	return roleResource{
+// 		provider: provider,
+// 	}, diags
+// }
+
+func (r *roleResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*warpgateProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *warpgateProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	r.provider = provider
+
 }
 
 type roleResource struct {
-	provider warpgateProvider
+	provider *warpgateProvider
 }
 
-func (r roleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var resourceState provider_models.Role
 
 	diags := req.Config.Get(ctx, &resourceState)
@@ -107,7 +144,7 @@ func (r roleResource) Create(ctx context.Context, req resource.CreateRequest, re
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r roleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *roleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var resourceState provider_models.Role
 
 	diags := req.State.Get(ctx, &resourceState)
@@ -137,6 +174,15 @@ func (r roleResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
+	if response.StatusCode() == 404 {
+		resp.Diagnostics.AddWarning(
+			"Failed to read role, resource not found. Removing from the state.",
+			fmt.Sprintf("Failed to read role. (Error code: %d)", response.StatusCode()),
+		)
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	if response.StatusCode() != 200 {
 		resp.Diagnostics.AddError(
 			"Failed to read role, wrong error code.",
@@ -159,7 +205,7 @@ func (r roleResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r roleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var resourceState provider_models.Role
 
 	diags := req.Plan.Get(ctx, &resourceState)
@@ -224,7 +270,7 @@ func (r roleResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r roleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *roleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var resourceState provider_models.Role
 
 	diags := req.State.Get(ctx, &resourceState)
@@ -271,6 +317,6 @@ func (r roleResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	// }
 }
 
-func (r roleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *roleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

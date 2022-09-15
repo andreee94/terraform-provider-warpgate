@@ -4,7 +4,7 @@ version: "3"
 
 services:
     warpgate:
-        image: ghcr.io/warp-tech/warpgate:v0.6.1
+        image: ghcr.io/warp-tech/warpgate:v0.6.2
         volumes:
           - ${warpgate_data}:/data
         ports:
