@@ -178,6 +178,11 @@ func (d *sshTargetListDataSource) Read(ctx context.Context, req datasource.ReadR
 			return
 		}
 
+		if sshoptions == nil {
+			tflog.Debug(ctx, "Not an ssh target. Continuing.")
+			continue
+		}
+
 		// var sshoptions warpgate.TargetOptionsTargetSSHOptions
 		// err = mapstructure.Decode(target.Options, &sshoptions)
 

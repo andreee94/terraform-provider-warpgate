@@ -58,7 +58,6 @@ resource "warpgate_http_target" "test" {
 	name = "%s"
 	options = {
 		url = "%s"
-		port = 22
 		tls = {
 			mode = "Preferred" 
 			verify = true

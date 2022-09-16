@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"terraform-provider-warpgate/warpgate"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -11,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/mitchellh/mapstructure"
 
 	provider_models "terraform-provider-warpgate/provider/models"
 )
@@ -169,10 +167,12 @@ func (d *httpTargetListDataSource) Read(ctx context.Context, req datasource.Read
 
 		tflog.Trace(ctx, fmt.Sprintf("Found %v", target))
 
-		var httpoptions *warpgate.TargetOptionsTargetHTTPOptions
-		err = mapstructure.Decode(target.Options, &httpoptions)
+		httpoptions, err := ParseHttpOptions(target.Options)
 
-		if err != nil || httpoptions == nil || httpoptions.Kind != "Http" {
+		// var httpoptions *warpgate.TargetOptionsTargetHTTPOptions
+		// err = mapstructure.Decode(target.Options, &httpoptions)
+
+		if err != nil || httpoptions == nil {
 			tflog.Info(ctx, fmt.Sprintf("Target %v is not http, skipping.", target))
 			continue
 		}
@@ -187,12 +187,20 @@ func (d *httpTargetListDataSource) Read(ctx context.Context, req datasource.Read
 			}
 		}
 
+		// var externalHost types.String
+
+		// if httpoptions.ExternalHost != nil {
+		// 	externalHost = types.String{Value: *httpoptions.ExternalHost}
+		// } else {
+		// 	externalHost = types.String{Null: true}
+		// }
+
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetHttp{
-			// AllowRoles: target.AllowRoles,
-			Id:   types.String{Value: target.Id.String()},
-			Name: target.Name,
+			AllowRoles: ArrayOfStringToTerraformSet(target.AllowRoles),
+			Id:         types.String{Value: target.Id.String()},
+			Name:       target.Name,
 			Options: provider_models.TargetHttpOptions{
-				ExternalHost: types.String{Value: *httpoptions.ExternalHost},
+				ExternalHost: httpoptions.ExternalHost,
 				Url:          httpoptions.Url,
 				Headers:      headers,
 				Tls: provider_models.TargetTls{

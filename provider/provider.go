@@ -273,6 +273,7 @@ func (p *warpgateProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewSshTargetResource,
 		NewRoleResource,
 		NewTargetRolesResource,
+		NewUserResource,
 	}
 }
 

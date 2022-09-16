@@ -1,9 +1,13 @@
 package provider
 
 import (
+	"fmt"
 	"terraform-provider-warpgate/warpgate"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 //	func SumIntsOrFloats[K comparable, V int64 | float64](m map[K]V) V {
@@ -51,6 +55,24 @@ func ArrayOfStringToTerraformSet(array []string) (result types.Set) {
 	return
 }
 
+func ArrayOfUint8ToTerraformList(array []uint8) (result types.List) {
+	// sort.Strings(array)
+
+	result.ElemType = types.Int64Type
+
+	for _, v := range array {
+		result.Elems = append(result.Elems, types.Int64{Value: int64(v)})
+	}
+	return
+}
+
+func TerraformListToArrayOfUint8(list types.List) (result []uint8) {
+	for _, v := range list.Elems {
+		result = append(result, uint8(v.(types.Int64).Value))
+	}
+	return
+}
+
 func ArrayOfRolesToTerraformSet(array []warpgate.Role) (result types.Set) {
 	array_string := []string{}
 
@@ -86,4 +108,39 @@ func If[T any](cond bool, vtrue, vfalse T) T {
 		return vtrue
 	}
 	return vfalse
+}
+
+func testCheckFuncValidUUID(name string, key string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		ms := s.RootModule()
+		is, err := modulePrimaryInstanceState(ms, name)
+
+		if err != nil {
+			return nil
+		}
+
+		v, ok := is.Attributes[key]
+
+		if !ok {
+			return fmt.Errorf("%s: Attribute '%s' not found", name, key)
+		}
+
+		_, err = uuid.Parse(v)
+
+		return err
+	}
+}
+
+func modulePrimaryInstanceState(ms *terraform.ModuleState, name string) (*terraform.InstanceState, error) {
+	rs, ok := ms.Resources[name]
+	if !ok {
+		return nil, fmt.Errorf("Not found: %s in %s", name, ms.Path)
+	}
+
+	is := rs.Primary
+	if is == nil {
+		return nil, fmt.Errorf("No primary instance: %s in %s", name, ms.Path)
+	}
+
+	return is, nil
 }

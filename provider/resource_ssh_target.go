@@ -244,6 +244,14 @@ func (r *sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
+	if sshoptions == nil {
+		resp.Diagnostics.AddError(
+			"Failed to read ssh target. Not an ssh target",
+			"Failed to read ssh target. Not an ssh target",
+		)
+		return
+	}
+
 	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
 	resourceState.Name = response.JSON200.Name
 	resourceState.Options.Host = sshoptions.Host
@@ -389,6 +397,10 @@ func ParseSshOptions(options warpgate.TargetOptions) (*provider_models.TargetSSH
 
 	if err != nil {
 		return nil, err
+	}
+
+	if sshoptions.Kind != "Ssh" {
+		return nil, nil
 	}
 
 	var kind struct {

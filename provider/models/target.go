@@ -26,10 +26,10 @@ type TargetSSHOptions struct {
 /////////////////////////////////////////
 
 type TargetHttp struct {
-	// AllowRoles []string          `tfsdk:"allow_roles"`
-	Id      types.String      `tfsdk:"id"`
-	Name    string            `tfsdk:"name"`
-	Options TargetHttpOptions `tfsdk:"options"`
+	AllowRoles types.Set         `tfsdk:"allow_roles"`
+	Id         types.String      `tfsdk:"id"`
+	Name       string            `tfsdk:"name"`
+	Options    TargetHttpOptions `tfsdk:"options"`
 }
 
 type TargetHttpOptions struct {

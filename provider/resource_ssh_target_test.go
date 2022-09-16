@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccSshTargetPublicKeyResource(t *testing.T) {
@@ -158,41 +156,6 @@ func TestAccSshTargetMixedAuthResource(t *testing.T) {
 			// Delete testing automatically occurs in TestCase
 		},
 	})
-}
-
-func testCheckFuncValidUUID(name string, key string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		ms := s.RootModule()
-		is, err := modulePrimaryInstanceState(ms, name)
-
-		if err != nil {
-			return nil
-		}
-
-		v, ok := is.Attributes[key]
-
-		if !ok {
-			return fmt.Errorf("%s: Attribute '%s' not found", name, key)
-		}
-
-		_, err = uuid.Parse(v)
-
-		return err
-	}
-}
-
-func modulePrimaryInstanceState(ms *terraform.ModuleState, name string) (*terraform.InstanceState, error) {
-	rs, ok := ms.Resources[name]
-	if !ok {
-		return nil, fmt.Errorf("Not found: %s in %s", name, ms.Path)
-	}
-
-	is := rs.Primary
-	if is == nil {
-		return nil, fmt.Errorf("No primary instance: %s in %s", name, ms.Path)
-	}
-
-	return is, nil
 }
 
 func testAccSshTargetPublicKeyResourceConfig(name string, host string) string {

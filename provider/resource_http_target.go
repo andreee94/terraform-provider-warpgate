@@ -30,15 +30,12 @@ var _ resource.ResourceWithImportState = &httpTargetResource{}
 func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
-			// "allow_roles": {
-			// 	// Type: schema.TypeList,
-			// 	// Elem: &schema.Schema{
-			// 	// 	Type: schema.TypeString,
-			// 	// },
-			// 	Type:     types.ListType{ElemType: types.StringType},
-			// 	Computed: true,
-			// 	Required: false,
-			// },
+			"allow_roles": {
+				Type:     types.SetType{ElemType: types.StringType},
+				Computed: true,
+				Required: false,
+				Optional: true,
+			},
 			"id": {
 				Computed:            true,
 				MarkdownDescription: "Id of the http target in warpgate",
@@ -199,7 +196,7 @@ func (r *httpTargetResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	resourceState.Id = types.String{Value: response.JSON201.Id.String()}
-	// resourceState.AllowRoles = response.JSON201.AllowRoles
+	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON201.AllowRoles)
 
 	// TODO maybe do not save the password into the state
 
@@ -264,7 +261,7 @@ func (r *httpTargetResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	// resourceState.AllowRoles = response.JSON200.AllowRoles
+	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
 	resourceState.Name = response.JSON200.Name
 	resourceState.Options.ExternalHost = httpoptions.ExternalHost
 	resourceState.Options.Headers = httpoptions.Headers
@@ -346,6 +343,7 @@ func (r *httpTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 		)
 		return
 	}
+	resourcePlan.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
 
 	tflog.Debug(ctx, fmt.Sprintf("Updating http_target state: %v", resourcePlan))
 
