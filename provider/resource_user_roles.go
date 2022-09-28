@@ -17,18 +17,18 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.ResourceType = targetRolesResourceType{}
-var _ resource.Resource = &targetRolesResource{}
-var _ resource.ResourceWithImportState = &targetRolesResource{}
+// var _ provider.ResourceType = userRolesResourceType{}
+var _ resource.Resource = &userRolesResource{}
+var _ resource.ResourceWithImportState = &userRolesResource{}
 
-// type targetRolesResourceType struct{}
+// type userRolesResourceType struct{}
 
-func (r *targetRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
+func (r *userRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"id": {
 				Type:                types.StringType,
-				MarkdownDescription: "Id of the target in warpgate",
+				MarkdownDescription: "Id of the user in warpgate",
 				Computed:            false,
 				Required:            true,
 				Optional:            false,
@@ -55,23 +55,23 @@ func (r *targetRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag
 	}, nil
 }
 
-// func (t targetRolesResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
+// func (t userRolesResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
 // 	provider, diags := convertProviderType(in)
 
-// 	return targetRolesResource{
+// 	return userRolesResource{
 // 		provider: provider,
 // 	}, diags
 // }
 
-func NewTargetRolesResource() resource.Resource {
-	return &targetRolesResource{}
+func NewUserRolesResource() resource.Resource {
+	return &userRolesResource{}
 }
 
-func (r *targetRolesResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_target_roles"
+func (r *userRolesResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_user_roles"
 }
 
-func (r *targetRolesResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *userRolesResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
 		return
@@ -100,12 +100,12 @@ func (r *targetRolesResource) Configure(ctx context.Context, req resource.Config
 	r.provider = provider
 }
 
-type targetRolesResource struct {
+type userRolesResource struct {
 	provider *warpgateProvider
 }
 
-func (r *targetRolesResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var resourceState provider_models.TargetRoles
+func (r *userRolesResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var resourceState provider_models.UserRoles
 
 	diags := req.Config.Get(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -114,29 +114,29 @@ func (r *targetRolesResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourceState.Id.Value)
+	userUUID, err := uuid.Parse(resourceState.Id.Value)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Failed to parse target id.",
-			fmt.Sprintf("Invalid target id %s (Err: %s)", resourceState.Id, err),
+			"Failed to parse user id.",
+			fmt.Sprintf("Invalid user id %s (Err: %s)", resourceState.Id, err),
 		)
 		return
 	}
 
-	// for _, roleId := range GetArraySortedToString(resourceState.RoleIds) {
 	for _, roleId := range resourceState.RoleIds.Elems {
 
 		roleUUID, err := uuid.Parse(roleId.String())
 
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Failed to parse target id.",
-				fmt.Sprintf("Invalid target id %s (Err: %s)", resourceState.Id, err),
+				"Failed to parse user id.",
+				fmt.Sprintf("Invalid user id %s (Err: %s)", resourceState.Id, err),
 			)
 			return
 		}
-		response, err := r.provider.client.AddTargetRoleWithResponse(ctx, targetUUID, roleUUID)
+
+		response, err := r.provider.client.AddUserRoleWithResponse(ctx, userUUID, roleUUID)
 
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -149,7 +149,7 @@ func (r *targetRolesResource) Create(ctx context.Context, req resource.CreateReq
 		if response.StatusCode() != 201 {
 			resp.Diagnostics.AddError(
 				"Failed to create role, wrong error code.",
-				fmt.Sprintf("Failed to add role %s to target %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
+				fmt.Sprintf("Failed to add role %s to user %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
 			)
 			return
 		}
@@ -159,8 +159,8 @@ func (r *targetRolesResource) Create(ctx context.Context, req resource.CreateReq
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *targetRolesResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var resourceState provider_models.TargetRoles
+func (r *userRolesResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var resourceState provider_models.UserRoles
 
 	diags := req.State.Get(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -169,40 +169,36 @@ func (r *targetRolesResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourceState.Id.Value)
+	userUUID, err := uuid.Parse(resourceState.Id.Value)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Failed to parse target id.",
-			fmt.Sprintf("Invalid target id %s (Err: %s)", resourceState.Id, err),
+			"Failed to parse user id.",
+			fmt.Sprintf("Invalid user id %s (Err: %s)", resourceState.Id, err),
 		)
 		return
 	}
 
-	response, err := r.provider.client.GetTargetRolesWithResponse(ctx, targetUUID)
+	response, err := r.provider.client.GetUserRolesWithResponse(ctx, userUUID)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Failed to read target roles",
-			fmt.Sprintf("Failed to read roles of target with id '%s'. (Error: %s)", resourceState.Id, err),
+			"Failed to read user roles",
+			fmt.Sprintf("Failed to read roles of user with id '%s'. (Error: %s)", resourceState.Id, err),
 		)
 		return
 	}
 
 	if response.StatusCode() != 200 {
 		resp.Diagnostics.AddError(
-			"Failed to read target roles, wrong error code.",
-			fmt.Sprintf("Failed to read roles of target with id '%s'. (Error code: %d)", resourceState.Id, response.StatusCode()),
+			"Failed to read user roles, wrong error code.",
+			fmt.Sprintf("Failed to read roles of user with id '%s'. (Error code: %d)", resourceState.Id, response.StatusCode()),
 		)
 		return
 	}
 
 	if response.JSON200 != nil {
 		resourceState.RoleIds = ArrayOfRolesToTerraformSet(*response.JSON200)
-
-		// for _, role := range *response.JSON200 {
-		// 	resourceState.RoleIds = append(resourceState.RoleIds, role.Id.String())
-		// }
 	} else {
 		resourceState.RoleIds = types.Set{ElemType: types.StringType}
 	}
@@ -211,9 +207,9 @@ func (r *targetRolesResource) Read(ctx context.Context, req resource.ReadRequest
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var resourceState provider_models.TargetRoles
-	var resourcePlan provider_models.TargetRoles
+func (r *userRolesResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var resourceState provider_models.UserRoles
+	var resourcePlan provider_models.UserRoles
 
 	diags := req.State.Get(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -225,12 +221,12 @@ func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourcePlan.Id.Value)
+	userUUID, err := uuid.Parse(resourcePlan.Id.Value)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Failed to parse target id.",
-			fmt.Sprintf("Invalid target id %s (Err: %s)", resourcePlan.Id, err),
+			"Failed to parse user id.",
+			fmt.Sprintf("Invalid user id %s (Err: %s)", resourcePlan.Id, err),
 		)
 		return
 	}
@@ -248,12 +244,12 @@ func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateReq
 
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Failed to parse target id.",
-				fmt.Sprintf("Invalid target id %s (Err: %s)", resourceState.Id, err),
+				"Failed to parse user id.",
+				fmt.Sprintf("Invalid user id %s (Err: %s)", resourceState.Id, err),
 			)
 			return
 		}
-		response, err := r.provider.client.DeleteTargetRoleWithResponse(ctx, targetUUID, roleUUID)
+		response, err := r.provider.client.DeleteUserRoleWithResponse(ctx, userUUID, roleUUID)
 
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -266,12 +262,12 @@ func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateReq
 		if response.StatusCode() == 409 {
 			resp.Diagnostics.AddWarning(
 				"Failed to delete role, conflict.",
-				fmt.Sprintf("Failed to remove role %s from target %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
+				fmt.Sprintf("Failed to remove role %s from user %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
 			)
 		} else if response.StatusCode() != 204 {
 			resp.Diagnostics.AddError(
 				"Failed to delete role, wrong error code.",
-				fmt.Sprintf("Failed to remove role %s from target %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
+				fmt.Sprintf("Failed to remove role %s from user %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
 			)
 			return
 		}
@@ -282,12 +278,12 @@ func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateReq
 
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Failed to parse target id.",
-				fmt.Sprintf("Invalid target id %s (Err: %s)", resourceState.Id, err),
+				"Failed to parse user id.",
+				fmt.Sprintf("Invalid user id %s (Err: %s)", resourceState.Id, err),
 			)
 			return
 		}
-		response, err := r.provider.client.AddTargetRoleWithResponse(ctx, targetUUID, roleUUID)
+		response, err := r.provider.client.AddUserRoleWithResponse(ctx, userUUID, roleUUID)
 
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -300,7 +296,7 @@ func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateReq
 		if response.StatusCode() != 201 {
 			resp.Diagnostics.AddError(
 				"Failed to create role, wrong error code.",
-				fmt.Sprintf("Failed to add role %s to target %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
+				fmt.Sprintf("Failed to add role %s to user %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
 			)
 			return
 		}
@@ -310,8 +306,8 @@ func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateReq
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *targetRolesResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var resourceState provider_models.TargetRoles
+func (r *userRolesResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var resourceState provider_models.UserRoles
 
 	diags := req.State.Get(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -320,12 +316,12 @@ func (r *targetRolesResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourceState.Id.Value)
+	userUUID, err := uuid.Parse(resourceState.Id.Value)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Failed to parse target id.",
-			fmt.Sprintf("Invalid target id %s (Err: %s)", resourceState.Id, err),
+			"Failed to parse user id.",
+			fmt.Sprintf("Invalid user id %s (Err: %s)", resourceState.Id, err),
 		)
 		return
 	}
@@ -336,12 +332,12 @@ func (r *targetRolesResource) Delete(ctx context.Context, req resource.DeleteReq
 
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Failed to parse target id.",
-				fmt.Sprintf("Invalid target id %s (Err: %s)", resourceState.Id, err),
+				"Failed to parse user id.",
+				fmt.Sprintf("Invalid user id %s (Err: %s)", resourceState.Id, err),
 			)
 			return
 		}
-		response, err := r.provider.client.DeleteTargetRoleWithResponse(ctx, targetUUID, roleUUID)
+		response, err := r.provider.client.DeleteUserRoleWithResponse(ctx, userUUID, roleUUID)
 
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -354,54 +350,18 @@ func (r *targetRolesResource) Delete(ctx context.Context, req resource.DeleteReq
 		if response.StatusCode() == 409 {
 			resp.Diagnostics.AddWarning(
 				"Failed to delete role, conflict.",
-				fmt.Sprintf("Failed to remove role %s from target %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
+				fmt.Sprintf("Failed to remove role %s from user %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
 			)
 		} else if response.StatusCode() != 204 {
 			resp.Diagnostics.AddError(
 				"Failed to delete role, wrong error code.",
-				fmt.Sprintf("Failed to remove role %s from target %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
+				fmt.Sprintf("Failed to remove role %s from user %s. (Error code: %d)", roleId, resourceState.Id, response.StatusCode()),
 			)
 			return
 		}
 	}
-
-	// id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
-
-	// if err != nil {
-	// 	resp.Diagnostics.AddError(
-	// 		"Failed to parse the id as uuid",
-	// 		fmt.Sprintf("Failed to parse the id '%s' as uuid", resourceState.Id),
-	// 	)
-	// 	return
-	// }
-
-	// response, err := r.provider.client.DeleteRoleWithResponse(ctx, id_as_uuid)
-
-	// if err != nil {
-	// 	resp.Diagnostics.AddError(
-	// 		"Failed to delete role",
-	// 		fmt.Sprintf("Failed to delete role with id '%s'. (Error: %s)", resourceState.Id, err),
-	// 	)
-	// 	return
-	// }
-
-	// if response.StatusCode() != 204 {
-	// 	resp.Diagnostics.AddError(
-	// 		"Failed to delete role, wrong error code.",
-	// 		fmt.Sprintf("Failed to delete role. (Error code: %d)", response.StatusCode()),
-	// 	)
-	// 	return
-	// }
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// example, err := d.provider.client.DeleteExample(...)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete example, got error: %s", err))
-	//     return
-	// }
 }
 
-func (r *targetRolesResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *userRolesResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

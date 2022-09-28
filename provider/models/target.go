@@ -8,34 +8,34 @@ import "github.com/hashicorp/terraform-plugin-framework/types"
 /////////////////////////////////////////
 
 type TargetSsh struct {
-	AllowRoles types.Set        `tfsdk:"allow_roles"`
-	Id         types.String     `tfsdk:"id"`
-	Name       string           `tfsdk:"name"`
-	Options    TargetSSHOptions `tfsdk:"options"`
+	AllowRoles types.Set         `tfsdk:"allow_roles"`
+	Id         types.String      `tfsdk:"id"`
+	Name       types.String      `tfsdk:"name"`
+	Options    *TargetSSHOptions `tfsdk:"options"`
 }
 
 type TargetSSHOptions struct {
-	Host     string       `tfsdk:"host"`
-	Port     uint16       `tfsdk:"port"`
-	Username string       `tfsdk:"username"`
+	Host     types.String `tfsdk:"host"`
+	Port     types.Int64  `tfsdk:"port"` // uint16
+	Username types.String `tfsdk:"username"`
 	Password types.String `tfsdk:"password"`
-	AuthKind string       `tfsdk:"auth_kind"`
+	AuthKind types.String `tfsdk:"auth_kind"`
 }
 
 /////////////////////////////////////////
 /////////////////////////////////////////
 
 type TargetHttp struct {
-	AllowRoles types.Set         `tfsdk:"allow_roles"`
-	Id         types.String      `tfsdk:"id"`
-	Name       string            `tfsdk:"name"`
-	Options    TargetHttpOptions `tfsdk:"options"`
+	AllowRoles types.Set          `tfsdk:"allow_roles"`
+	Id         types.String       `tfsdk:"id"`
+	Name       types.String       `tfsdk:"name"`
+	Options    *TargetHttpOptions `tfsdk:"options"`
 }
 
 type TargetHttpOptions struct {
 	ExternalHost types.String               `tfsdk:"external_host"`
-	Url          string                     `tfsdk:"url"`
-	Tls          TargetTls                  `tfsdk:"tls"`
+	Url          types.String               `tfsdk:"url"`
+	Tls          *TargetTls                 `tfsdk:"tls"`
 	Headers      *TargetHttpOptions_Headers `tfsdk:"headers"`
 }
 
@@ -44,8 +44,8 @@ type TargetHttpOptions_Headers struct {
 }
 
 type TargetTls struct {
-	Mode   string `tfsdk:"mode"`
-	Verify bool   `tfsdk:"verify"`
+	Mode   types.String `tfsdk:"mode"`
+	Verify types.Bool   `tfsdk:"verify"`
 }
 
 /////////////////////////////////////////

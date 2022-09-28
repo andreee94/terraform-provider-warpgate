@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"terraform-provider-warpgate/provider/models"
 	provider_models "terraform-provider-warpgate/provider/models"
 	"terraform-provider-warpgate/warpgate"
 
@@ -12,6 +11,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -36,19 +36,27 @@ func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 				Type: types.StringType,
 			},
 			"roles": {
-				Type:     types.SetType{ElemType: types.StringType},
-				Computed: true,
+				Description: "The list of roles that the user belong to. To assign a new role to the user refer to [user_roles](user_roles.md) ",
+				Type:        types.SetType{ElemType: types.StringType},
+				Computed:    true,
 			},
 			"username": {
-				Type:     types.StringType,
-				Computed: false,
-				Required: true,
+				Description: "The username of the user.",
+				Type:        types.StringType,
+				Computed:    false,
+				Required:    true,
 			},
 			"credentials": {
-				Computed: false,
-				Required: true,
-				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
+				Description: "The list of credentials that the user may use to connect to warpgate",
+				Computed:    false,
+				Required:    true,
+				Attributes: tfsdk.SetNestedAttributes(map[string]tfsdk.Attribute{
 					"kind": {
+						Description: "The credential type. Valid values are:\n" +
+							"	- `Sso` requires: `email` and `provider`.\n" +
+							"	- `Totp` requires: `totp_key`.\n" +
+							"	- `Password` requires: `hash`.\n" +
+							"	- `PublicKey` requires: `public_key`.\n",
 						Type:     types.StringType,
 						Computed: false,
 						Required: true,
@@ -68,7 +76,7 @@ func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 						Required:    false,
 						Optional:    true,
 						Sensitive:   true,
-						Description: "Only for kind: Password",
+						Description: "The hashed password. Only for kind: `Password`",
 						Validators: []tfsdk.AttributeValidator{
 							schemavalidator.ConflictsWith(
 								path.MatchRelative().AtParent().AtName("email"),
@@ -84,7 +92,7 @@ func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 						Computed:    false,
 						Required:    false,
 						Optional:    true,
-						Description: "Only for kind: Sso",
+						Description: "The email of the user in the sso system. Only for kind: `Sso`",
 						Validators: []tfsdk.AttributeValidator{
 							schemavalidator.ConflictsWith(
 								path.MatchRelative().AtParent().AtName("hash"),
@@ -101,7 +109,7 @@ func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 						Computed:    false,
 						Required:    false,
 						Optional:    true,
-						Description: "Only for kind: Sso",
+						Description: "The sso provider name defined in the configuration file. Only for kind: `Sso`",
 						Validators: []tfsdk.AttributeValidator{
 							schemavalidator.ConflictsWith(
 								path.MatchRelative().AtParent().AtName("hash"),
@@ -119,7 +127,7 @@ func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 						Computed:    false,
 						Required:    false,
 						Optional:    true,
-						Description: "Only for kind: PublicKey",
+						Description: "The ssh public key that the user uses to connect via ssh. Only for kind: `PublicKey`",
 						Validators: []tfsdk.AttributeValidator{
 							schemavalidator.ConflictsWith(
 								path.MatchRelative().AtParent().AtName("hash"),
@@ -136,7 +144,7 @@ func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 						Required:    false,
 						Optional:    true,
 						Sensitive:   true,
-						Description: "Only for kind: Totp",
+						Description: "The totp secret key as array of uint8. Only for kind: `Totp`",
 						Validators: []tfsdk.AttributeValidator{
 							schemavalidator.ConflictsWith(
 								path.MatchRelative().AtParent().AtName("hash"),
@@ -205,8 +213,8 @@ func (r *userTargetResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	response, err := r.provider.client.CreateUserWithResponse(ctx, warpgate.UserDataRequest{
-		Username:    resourceState.Username,
-		Credentials: GenerateWarpgateUserAuthCredentials(resourceState),
+		Username:    resourceState.Username.Value,
+		Credentials: GenerateWarpgateUserAuthCredentials(ctx, resourceState),
 		// CredentialPolicy: &warpgate.UserRequireCredentialsPolicy{},
 	})
 
@@ -327,8 +335,8 @@ func (r *userTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	response, err := r.provider.client.UpdateUserWithResponse(ctx, id_as_uuid, warpgate.UserDataRequest{
-		Username:    resourcePlan.Username,
-		Credentials: GenerateWarpgateUserAuthCredentials(resourcePlan),
+		Username:    resourcePlan.Username.Value,
+		Credentials: GenerateWarpgateUserAuthCredentials(ctx, resourcePlan),
 		// CredentialPolicy: &warpgate.UserRequireCredentialsPolicy{},
 	})
 
@@ -349,7 +357,7 @@ func (r *userTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	// probably unnecessary check
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Username != resourcePlan.Username {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Username != resourcePlan.Username.Value {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
@@ -409,7 +417,7 @@ func (r *userTargetResource) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func ParseUserCredential(credential warpgate.UserAuthCredential) (result *models.UserAuthCredential, err error) {
+func ParseUserCredential(credential warpgate.UserAuthCredential) (result *types.Object, err error) {
 
 	var kind struct {
 		Kind string `json:"kind"`
@@ -420,15 +428,24 @@ func ParseUserCredential(credential warpgate.UserAuthCredential) (result *models
 		return nil, err
 	}
 
-	result = &models.UserAuthCredential{
-		Kind:      kind.Kind,
-		Hash:      types.String{Null: true},
-		Email:     types.String{Null: true},
-		Provider:  types.String{Null: true},
-		TotpKey:   types.List{Null: true, ElemType: types.Int64Type},
-		PublicKey: types.String{Null: true},
+	result = &types.Object{
+		Attrs: map[string]attr.Value{
+			"kind":       types.String{Value: kind.Kind},
+			"hash":       types.String{Null: true},
+			"email":      types.String{Null: true},
+			"provider":   types.String{Null: true},
+			"public_key": types.String{Null: true},
+			"totp_key":   types.List{Null: true, ElemType: types.Int64Type},
+		},
+		AttrTypes: map[string]attr.Type{
+			"kind":       types.StringType,
+			"hash":       types.StringType,
+			"email":      types.StringType,
+			"provider":   types.StringType,
+			"public_key": types.StringType,
+			"totp_key":   types.ListType{ElemType: types.Int64Type},
+		},
 	}
-
 	if kind.Kind == string(warpgate.Sso) {
 
 		c := &warpgate.UserAuthCredentialUserSsoCredential{}
@@ -442,40 +459,42 @@ func ParseUserCredential(credential warpgate.UserAuthCredential) (result *models
 			provider = types.String{Value: *c.Provider}
 		}
 
-		result.Email = types.String{Value: c.Email}
-		result.Provider = provider
+		result.Attrs["provider"] = provider
+		result.Attrs["email"] = types.String{Value: c.Email}
 
 	} else if kind.Kind == string(warpgate.Password) {
 
 		c := &warpgate.UserAuthCredentialUserPasswordCredential{}
 		err = mapstructure.Decode(credential, &c)
 
-		result.Hash = types.String{Value: c.Hash}
+		result.Attrs["hash"] = types.String{Value: c.Hash}
 
 	} else if kind.Kind == string(warpgate.PublicKey) {
 
 		c := &warpgate.UserAuthCredentialUserPublicKeyCredential{}
 		err = mapstructure.Decode(credential, &c)
 
-		result.PublicKey = types.String{Value: c.Key}
+		result.Attrs["public_key"] = types.String{Value: c.Key}
 
 	} else if kind.Kind == string(warpgate.Totp) {
 
 		c := &warpgate.UserAuthCredentialUserTotpCredential{}
 		err = mapstructure.Decode(credential, &c)
 
-		result.TotpKey = ArrayOfUint8ToTerraformList(c.Key)
+		result.Attrs["totp_key"] = ArrayOfUint16ToTerraformList(c.Key)
 	}
 
 	return
 }
 
-func ParseUser(user *warpgate.User) (result *models.User, err error) {
+func ParseUser(user *warpgate.User) (result *provider_models.User, err error) {
 	result = &provider_models.User{
 		Id:       types.String{Value: user.Id.String()},
-		Username: user.Username,
+		Username: types.String{Value: user.Username},
 		Roles:    ArrayOfStringToTerraformSet(user.Roles),
 	}
+
+	var userCredentials []attr.Value //[]models.UserAuthCredential
 
 	for _, c := range user.Credentials {
 		credential, err := ParseUserCredential(c)
@@ -484,37 +503,59 @@ func ParseUser(user *warpgate.User) (result *models.User, err error) {
 			return nil, err
 		}
 
-		result.Credentials = append(result.Credentials, *credential)
+		userCredentials = append(userCredentials, *credential)
+	}
+
+	result.Credentials = types.Set{
+		Null:  len(userCredentials) == 0,
+		Elems: userCredentials,
+		ElemType: types.ObjectType{
+			AttrTypes: map[string]attr.Type{
+				"kind":       types.StringType,
+				"hash":       types.StringType,
+				"email":      types.StringType,
+				"provider":   types.StringType,
+				"public_key": types.StringType,
+				"totp_key":   types.ListType{ElemType: types.Int64Type},
+			},
+		},
 	}
 
 	return
 }
 
-func GenerateWarpgateUserAuthCredentials(user models.User) (result []warpgate.UserAuthCredential) {
-	for _, c := range user.Credentials {
+func GenerateWarpgateUserAuthCredentials(ctx context.Context, user provider_models.User) (result []warpgate.UserAuthCredential) {
+
+	credentials, err := user.CredentialsAsArray(ctx)
+
+	if err != nil {
+		return
+	}
+
+	for _, c := range credentials {
 
 		var credential warpgate.UserAuthCredential
 
-		if c.Kind == string(warpgate.Sso) {
+		if c.Kind.Value == string(warpgate.Sso) {
 			credential = warpgate.UserAuthCredentialUserSsoCredential{
-				Kind:     c.Kind,
+				Kind:     c.Kind.Value,
 				Email:    c.Email.Value,
 				Provider: &c.Provider.Value, // TODO check for null
 			}
-		} else if c.Kind == string(warpgate.Password) {
+		} else if c.Kind.Value == string(warpgate.Password) {
 			credential = warpgate.UserAuthCredentialUserPasswordCredential{
-				Kind: c.Kind,
+				Kind: c.Kind.Value,
 				Hash: c.Hash.Value,
 			}
-		} else if c.Kind == string(warpgate.Password) {
+		} else if c.Kind.Value == string(warpgate.PublicKey) {
 			credential = warpgate.UserAuthCredentialUserPublicKeyCredential{
-				Kind: c.Kind,
+				Kind: c.Kind.Value,
 				Key:  c.PublicKey.Value,
 			}
-		} else if c.Kind == string(warpgate.Totp) {
+		} else if c.Kind.Value == string(warpgate.Totp) {
 			credential = warpgate.UserAuthCredentialUserTotpCredential{
-				Kind: c.Kind,
-				Key:  TerraformListToArrayOfUint8(c.TotpKey),
+				Kind: c.Kind.Value,
+				Key:  TerraformListToArrayOfUint16(c.TotpKey),
 			}
 		}
 

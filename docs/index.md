@@ -18,7 +18,7 @@ description: |-
 ### Optional
 
 - `host` (String) The hostname of the warpgate server
-- `insecure_skip_verify` (Boolean) If to skip the verification of the tls certificate
+- `insecure_skip_verify` (Boolean) If to skip the verification of the tls certificate (For self signed certificates)
 - `password` (String, Sensitive) The password to login to the warpgate server
 - `port` (Number) The port of the warpgate server (Default: 8888)
 - `username` (String) The username to login to the warpgate server

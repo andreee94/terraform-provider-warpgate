@@ -133,7 +133,7 @@ func (d *roleListDataSource) Read(ctx context.Context, req datasource.ReadReques
 
 		resourceState.Roles = append(resourceState.Roles, provider_models.Role{
 			Id:   types.String{Value: role.Id.String()},
-			Name: role.Name,
+			Name: types.String{Value: role.Name},
 		})
 	}
 

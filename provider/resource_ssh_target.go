@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"regexp"
 	provider_models "terraform-provider-warpgate/provider/models"
 	"terraform-provider-warpgate/provider/validators"
 	"terraform-provider-warpgate/warpgate"
@@ -11,6 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -57,7 +58,7 @@ func (r *sshTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.D
 						Computed: false,
 						Required: true,
 						Validators: []tfsdk.AttributeValidator{
-							validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+							validators.IsDomain(),
 						},
 					},
 					"port": {
@@ -65,7 +66,7 @@ func (r *sshTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.D
 						Computed: false,
 						Required: true,
 						Validators: []tfsdk.AttributeValidator{
-							validators.IntBetween(1, 65535),
+							int64validator.Between(1, 65535),
 						},
 					},
 					"username": {
@@ -78,7 +79,10 @@ func (r *sshTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.D
 						Computed: false,
 						Required: true,
 						Validators: []tfsdk.AttributeValidator{
-							validators.StringIn([]string{string(warpgate.Password), string(warpgate.PublicKey)}, false),
+							stringvalidator.OneOf(
+								string(warpgate.Password),
+								string(warpgate.PublicKey),
+							),
 						},
 					},
 					"password": {
@@ -154,12 +158,12 @@ func (r *sshTargetResource) Create(ctx context.Context, req resource.CreateReque
 	}
 
 	response, err := r.provider.client.CreateTargetWithResponse(ctx, warpgate.CreateTargetJSONBody{
-		Name: resourceState.Name,
+		Name: resourceState.Name.Value,
 		Options: warpgate.TargetOptionsTargetSSHOptions{
 			Kind:     "Ssh",
-			Host:     resourceState.Options.Host,
-			Port:     resourceState.Options.Port,
-			Username: resourceState.Options.Username,
+			Host:     resourceState.Options.Host.Value,
+			Port:     uint16(resourceState.Options.Port.Value),
+			Username: resourceState.Options.Username.Value,
 			Auth:     GenerateSshAuth(resourceState),
 		},
 	})
@@ -253,11 +257,18 @@ func (r *sshTargetResource) Read(ctx context.Context, req resource.ReadRequest, 
 	}
 
 	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
-	resourceState.Name = response.JSON200.Name
-	resourceState.Options.Host = sshoptions.Host
-	resourceState.Options.Port = sshoptions.Port
-	resourceState.Options.Username = sshoptions.Username
-	resourceState.Options.AuthKind = sshoptions.AuthKind
+	resourceState.Name = types.String{Value: response.JSON200.Name}
+	resourceState.Options = &provider_models.TargetSSHOptions{
+		Host:     sshoptions.Host,
+		Port:     sshoptions.Port,
+		Username: sshoptions.Username,
+		AuthKind: sshoptions.AuthKind,
+		Password: sshoptions.Password,
+	}
+	// resourceState.Options.Host = sshoptions.Host
+	// resourceState.Options.Port = sshoptions.Port
+	// resourceState.Options.Username = sshoptions.Username
+	// resourceState.Options.AuthKind = sshoptions.AuthKind
 	// if resourceState.Options.AuthKind == string(warpgate.Password) {
 	// 	resourceState.Options.Password = sshoptions.Password
 	// }
@@ -287,12 +298,12 @@ func (r *sshTargetResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	response, err := r.provider.client.UpdateTargetWithResponse(ctx, id_as_uuid, warpgate.UpdateTargetJSONBody{
-		Name: resourcePlan.Name,
+		Name: resourcePlan.Name.Value,
 		Options: warpgate.TargetOptionsTargetSSHOptions{
 			Kind:     "Ssh",
-			Host:     resourcePlan.Options.Host,
-			Port:     resourcePlan.Options.Port,
-			Username: resourcePlan.Options.Username,
+			Host:     resourcePlan.Options.Host.Value,
+			Port:     uint16(resourcePlan.Options.Port.Value),
+			Username: resourcePlan.Options.Username.Value,
 			Auth:     GenerateSshAuth(resourcePlan),
 		},
 	})
@@ -314,7 +325,7 @@ func (r *sshTargetResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	// probably unnecessary check
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourcePlan.Name {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourcePlan.Name.Value {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
@@ -377,14 +388,14 @@ func (r *sshTargetResource) ImportState(ctx context.Context, req resource.Import
 func GenerateSshAuth(resourceState provider_models.TargetSsh) warpgate.SSHTargetAuth {
 	var auth warpgate.SSHTargetAuth
 
-	if resourceState.Options.AuthKind == string(warpgate.Password) {
+	if resourceState.Options.AuthKind.Value == string(warpgate.Password) {
 		auth = warpgate.SSHTargetAuthSshTargetPasswordAuth{
 			Password: resourceState.Options.Password.Value,
-			Kind:     resourceState.Options.AuthKind,
+			Kind:     resourceState.Options.AuthKind.Value,
 		}
-	} else if resourceState.Options.AuthKind == string(warpgate.PublicKey) {
+	} else if resourceState.Options.AuthKind.Value == string(warpgate.PublicKey) {
 		auth = warpgate.SSHTargetAuthSshTargetPublicKeyAuth{
-			Kind: resourceState.Options.AuthKind,
+			Kind: resourceState.Options.AuthKind.Value,
 		}
 	}
 	return auth
@@ -412,9 +423,11 @@ func ParseSshOptions(options warpgate.TargetOptions) (*provider_models.TargetSSH
 		return nil, err
 	}
 
-	result.Host = sshoptions.Host
-	result.Port = sshoptions.Port
-	result.Username = sshoptions.Username
+	result.AuthKind = types.String{Value: kind.Kind}
+	result.Host = types.String{Value: sshoptions.Host}
+	result.Port = types.Int64{Value: int64(sshoptions.Port)}
+	result.Username = types.String{Value: sshoptions.Username}
+	result.Password = types.String{Null: true}
 
 	if kind.Kind == string(warpgate.Password) {
 		var auth warpgate.SshTargetPasswordAuth
@@ -427,8 +440,6 @@ func ParseSshOptions(options warpgate.TargetOptions) (*provider_models.TargetSSH
 
 		result.Password = types.String{Value: auth.Password}
 	}
-
-	result.AuthKind = kind.Kind
 
 	return &result, err
 }

@@ -1,22 +1,26 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
+	"github.com/bxcodec/faker/v4"
+	"github.com/bxcodec/faker/v4/pkg/options"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccUserResource(t *testing.T) {
 
-	// os.Setenv("TF_ACC", "1")
-	// os.Setenv("TF_LOG", "debug")
+	type Data struct {
+		TotpKey []int8 `faker:"slice_len=32"`
+	}
 
-	// os.Setenv("WARPGATE_HOST", "127.0.0.1")
-	// os.Setenv("WARPGATE_PORT", "38888")
-	// os.Setenv("WARPGATE_USERNAME", "admin")
-	// os.Setenv("WARPGATE_PASSWORD", "password")
-	// os.Setenv("WARPGATE_INSECURE_SKIP_VERIFY", "true")
+	data := Data{}
+	_ = faker.FakeData(&data, options.WithRandomMapAndSliceMaxSize(32)) // If no slice_len is set, this sets the max of the random size
+
+	totp_key, _ := json.Marshal(data.TotpKey)
+	totp_key_string := string(totp_key)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -24,40 +28,125 @@ func TestAccUserResource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: testAccUserResourceConfig("one"),
+				Config: testAccUserResourceConfig("one", totp_key_string),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("warpgate_user.test", "username", "one"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.host", "10.10.10.10"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "id"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "name"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.host"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.port"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.username"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.auth_kind"),
-					// resource.TestCheckNoResourceAttr("warpgate_user.test", "options.password"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.auth_kind", "PublicKey"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.username", "root"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.port", "22"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "allow_roles.#", "0"),
+					resource.TestCheckResourceAttr("warpgate_user.test", "credentials.#", "6"),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":     "Sso",
+						"email":    "test@example.com",
+						"provider": "",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":     "Sso",
+						"email":    "test2@example.com",
+						"provider": "",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "PublicKey",
+						"public_key": "AAAAAAAAAAA",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "PublicKey",
+						"public_key": "BBBBBBBBBBB",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind": "Password",
+						"hash": "$argon2id$v=19$m=65536,t=1,p=2$5rAIZSCP/YX+JM8m7mo4gQ$TSGk41+4MOzCPbDOjB2AdU18Mz57Df4hmWyNjoilu7k",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "Totp",
+						"totp_key.#": "32",
+						// "totp_key": fmt.Sprintf("%v", totp_key_string),
+					}),
+
+					testCheckFuncValidUUID("warpgate_user.test", "id"),
+				),
+			},
+			// ImportState testing
+			{
+				ResourceName:      "warpgate_user.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+			// Update and Read testing
+			{
+				Config: testAccUserResourceConfig("two", totp_key_string),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("warpgate_user.test", "username", "two"),
+					resource.TestCheckResourceAttr("warpgate_user.test", "credentials.#", "6"),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":     "Sso",
+						"email":    "test@example.com",
+						"provider": "",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":     "Sso",
+						"email":    "test2@example.com",
+						"provider": "",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "PublicKey",
+						"public_key": "AAAAAAAAAAA",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "PublicKey",
+						"public_key": "BBBBBBBBBBB",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind": "Password",
+						"hash": "$argon2id$v=19$m=65536,t=1,p=2$5rAIZSCP/YX+JM8m7mo4gQ$TSGk41+4MOzCPbDOjB2AdU18Mz57Df4hmWyNjoilu7k",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "Totp",
+						"totp_key.#": "32",
+						// "totp_key": fmt.Sprintf("%v", totp_key_string),
+					}),
+
 					testCheckFuncValidUUID("warpgate_user.test", "id"),
 				),
 			},
 			// Update and Read testing
 			{
-				Config: testAccUserResourceConfig("two"),
+				Config: testAccUserUpdateRemoveCredentialsResourceConfig("two", totp_key_string),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("warpgate_user.test", "username", "two"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.host", "20.20.20.20"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "id"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.host"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.port"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.username"),
-					// resource.TestCheckResourceAttrSet("warpgate_user.test", "options.auth_kind"),
-					// resource.TestCheckNoResourceAttr("warpgate_user.test", "options.password"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.auth_kind", "PublicKey"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.username", "root"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "options.port", "22"),
-					// resource.TestCheckResourceAttr("warpgate_user.test", "allow_roles.#", "0"),
+					resource.TestCheckResourceAttr("warpgate_user.test", "credentials.#", "4"),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":     "Sso",
+						"email":    "test@example.com",
+						"provider": "",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "PublicKey",
+						"public_key": "CCCCCCCCCCC",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind": "Password",
+						"hash": "$argon2id$v=19$m=65536,t=1,p=2$5rAIZSCP/YX+JM8m7mo4gQ$TSGk41+4MOzCPbDOjB2AdU18Mz57Df4hmWyNjoilu7k",
+					}),
+
+					resource.TestCheckTypeSetElemNestedAttrs("warpgate_user.test", "credentials.*", map[string]string{
+						"kind":       "Totp",
+						"totp_key.#": "32",
+						// "totp_key": fmt.Sprintf("%v", totp_key_string),
+					}),
+
 					testCheckFuncValidUUID("warpgate_user.test", "id"),
 				),
 			},
@@ -66,7 +155,8 @@ func TestAccUserResource(t *testing.T) {
 	})
 }
 
-func testAccUserResourceConfig(name string) string {
+func testAccUserResourceConfig(name string, totp_key string) string {
+
 	return fmt.Sprintf(`
 provider "warpgate" {}
 	  
@@ -76,21 +166,60 @@ resource "warpgate_user" "test" {
 		{
 			kind = "Sso"
 			email = "test@example.com"
-			provider = "oidc"
+			provider = "" // requires a provider added in the yaml file
+		},
+		{
+			kind = "Sso"
+			email = "test2@example.com"
+			provider = "" // requires a provider added in the yaml file
+		},
+		{
+			kind = "PublicKey"
+			public_key = "AAAAAAAAAAA"
+		},
+		{
+			kind = "PublicKey"
+			public_key = "BBBBBBBBBBB"
 		},
 		{
 			kind = "Password"
-			hash = "password"
+			hash = "$argon2id$v=19$m=65536,t=1,p=2$5rAIZSCP/YX+JM8m7mo4gQ$TSGk41+4MOzCPbDOjB2AdU18Mz57Df4hmWyNjoilu7k"
 		},
-		// {
-		// 	kind = "Totp"
-		// 	topt_key = [0, 1, 2, 3]
-		// }
-		// ,{
-		// 	kind = "PublicKey"
-		// 	public_key = "AAAAAAA"
-		// }
+		{
+			kind = "Totp"
+			totp_key = %s
+		}
 	]
 }
-`, name)
+`, name, totp_key)
+}
+
+func testAccUserUpdateRemoveCredentialsResourceConfig(name string, totp_key string) string {
+
+	return fmt.Sprintf(`
+provider "warpgate" {}
+	  	  
+resource "warpgate_user" "test" {
+	username = "%s"
+	credentials = [
+		{
+			kind = "Totp"
+			totp_key = %s
+		},
+		{
+			kind = "Sso"
+			email = "test@example.com"
+			provider = "" // requires a provider added in the yaml file
+		},
+		{
+			kind = "PublicKey"
+			public_key = "CCCCCCCCCCC"
+		},
+		{
+			kind = "Password"
+			hash = "$argon2id$v=19$m=65536,t=1,p=2$5rAIZSCP/YX+JM8m7mo4gQ$TSGk41+4MOzCPbDOjB2AdU18Mz57Df4hmWyNjoilu7k"
+		}
+	]
+}
+`, name, totp_key)
 }

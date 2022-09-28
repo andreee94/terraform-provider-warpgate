@@ -64,10 +64,13 @@ install-oapi-codegen:
 	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
 
 gen-warpgate: install-oapi-codegen
-	$(GOBIN)/oapi-codegen -config $(CLIENTCONFIG) $(WARPGATEOPENAPI) > $(CLIENTGENFILE)
+	curl -o /tmp/openapi-schema.json $(WARPGATEOPENAPI)
+	sed -i 's/uint8/uint16/' /tmp/openapi-schema.json # HACK FOR MARSHALLING OF UINT8 IN GO WHICH CONVERTS THE ARRAY TO STRING BASE64 INSTEAD OF ARRAY OF INT
+	$(GOBIN)/oapi-codegen -config $(CLIENTCONFIG) /tmp/openapi-schema.json > $(CLIENTGENFILE)
 
 install-tfplugindocs:
 	go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+	go get github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
 
 gen-doc: install-tfplugindocs
 	$(GOBIN)/tfplugindocs generate
@@ -76,6 +79,6 @@ gen-warpgate-setup:
 	sudo rm -rf $(WARPGATE_SETUP_DATA_TEMP)
 	sudo rm -rf ./_scripts/data/*
 	mkdir -p ./_scripts/data/
-	docker run -it --rm -v $(WARPGATE_SETUP_DATA_TEMP):/data ghcr.io/warp-tech/warpgate:v0.6.1 setup
+	docker run -it --rm -v $(WARPGATE_SETUP_DATA_TEMP):/data ghcr.io/warp-tech/warpgate:v0.6.4 setup
 	sudo cp -r $(WARPGATE_SETUP_DATA_TEMP)/* ./_scripts/data/
 	sudo rm -r $(WARPGATE_SETUP_DATA_TEMP)

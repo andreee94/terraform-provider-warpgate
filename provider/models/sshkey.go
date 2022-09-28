@@ -1,6 +1,8 @@
 package models
 
+import "github.com/hashicorp/terraform-plugin-framework/types"
+
 type SshKey struct {
-	Kind            string `tfsdk:"kind"`
-	PublicKeyBase64 string `tfsdk:"public_key_base64"`
+	Kind            types.String `tfsdk:"kind"`
+	PublicKeyBase64 types.String `tfsdk:"public_key_base64"`
 }

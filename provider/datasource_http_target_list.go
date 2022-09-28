@@ -198,13 +198,13 @@ func (d *httpTargetListDataSource) Read(ctx context.Context, req datasource.Read
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetHttp{
 			AllowRoles: ArrayOfStringToTerraformSet(target.AllowRoles),
 			Id:         types.String{Value: target.Id.String()},
-			Name:       target.Name,
-			Options: provider_models.TargetHttpOptions{
+			Name:       types.String{Value: target.Name},
+			Options: &provider_models.TargetHttpOptions{
 				ExternalHost: httpoptions.ExternalHost,
 				Url:          httpoptions.Url,
 				Headers:      headers,
-				Tls: provider_models.TargetTls{
-					Mode:   string(httpoptions.Tls.Mode),
+				Tls: &provider_models.TargetTls{
+					Mode:   types.String{Value: string(httpoptions.Tls.Mode.Value)},
 					Verify: httpoptions.Tls.Verify,
 				},
 			},

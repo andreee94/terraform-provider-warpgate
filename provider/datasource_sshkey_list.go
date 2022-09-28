@@ -142,8 +142,8 @@ func (d *sshkeyListDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		}
 
 		resourceState.SshKeys = append(resourceState.SshKeys, provider_models.SshKey{
-			Kind:            sshkey.Kind,
-			PublicKeyBase64: sshkey.PublicKeyBase64,
+			Kind:            types.String{Value: sshkey.Kind},
+			PublicKeyBase64: types.String{Value: sshkey.PublicKeyBase64},
 		})
 	}
 

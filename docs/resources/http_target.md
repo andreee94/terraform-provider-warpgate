@@ -20,6 +20,10 @@ description: |-
 - `name` (String)
 - `options` (Attributes) (see [below for nested schema](#nestedatt--options))
 
+### Optional
+
+- `allow_roles` (Set of String)
+
 ### Read-Only
 
 - `id` (String) Id of the http target in warpgate

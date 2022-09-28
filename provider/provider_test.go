@@ -17,10 +17,6 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 }
 
 func testAccPreCheck(t *testing.T) {
-	// if v := os.Getenv("MAILOSAUR_API_KEY"); v == "" {
-	// 	t.Fatalf("MAILOSAUR_API_KEY must be set for acceptance tests")
-	// }
-
 	checkEnvNotNull(t, "WARPGATE_HOST")
 	checkEnvNotNull(t, "WARPGATE_PORT")
 	checkEnvNotNull(t, "WARPGATE_USERNAME")

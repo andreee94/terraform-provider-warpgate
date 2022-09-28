@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"terraform-provider-warpgate/provider/modifiers"
 	"terraform-provider-warpgate/provider/validators"
 	"terraform-provider-warpgate/warpgate"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -84,7 +84,8 @@ func (p *warpgateProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diag
 				Required:    false,
 				Computed:    false,
 				Validators: []tfsdk.AttributeValidator{
-					validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+					validators.IsDomain(),
+					// validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
 				},
 			},
 			"port": {
@@ -93,7 +94,7 @@ func (p *warpgateProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diag
 				Optional:    true,
 				Required:    false,
 				Validators: []tfsdk.AttributeValidator{
-					validators.IntBetween(1, 65535),
+					int64validator.Between(1, 65535),
 				},
 				PlanModifiers: []tfsdk.AttributePlanModifier{
 					modifiers.IntDefault(8888),
@@ -116,7 +117,7 @@ func (p *warpgateProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diag
 			},
 			"insecure_skip_verify": {
 				Type:        types.BoolType,
-				Description: "If to skip the verification of the tls certificate",
+				Description: "If to skip the verification of the tls certificate (For self signed certificates)",
 				Optional:    true,
 				Required:    false,
 				Computed:    false,
@@ -274,6 +275,7 @@ func (p *warpgateProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewRoleResource,
 		NewTargetRolesResource,
 		NewUserResource,
+		NewUserRolesResource,
 	}
 }
 

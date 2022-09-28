@@ -19,6 +19,12 @@ func TestAccTargetRolesResource(t *testing.T) {
 					testCheckFuncValidUUID("warpgate_target_roles.test", "id"),
 				),
 			},
+			// ImportState testing
+			{
+				ResourceName:      "warpgate_target_roles.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 			// // Update and Read testing
 			{
 				Config: testAccTargetRolesUpdatedResourceConfig(),

@@ -66,9 +66,27 @@ func ArrayOfUint8ToTerraformList(array []uint8) (result types.List) {
 	return
 }
 
+func ArrayOfUint16ToTerraformList(array []uint16) (result types.List) {
+	// sort.Strings(array)
+
+	result.ElemType = types.Int64Type
+
+	for _, v := range array {
+		result.Elems = append(result.Elems, types.Int64{Value: int64(v)})
+	}
+	return
+}
+
 func TerraformListToArrayOfUint8(list types.List) (result []uint8) {
 	for _, v := range list.Elems {
 		result = append(result, uint8(v.(types.Int64).Value))
+	}
+	return
+}
+
+func TerraformListToArrayOfUint16(list types.List) (result []uint16) {
+	for _, v := range list.Elems {
+		result = append(result, uint16(v.(types.Int64).Value))
 	}
 	return
 }
@@ -134,12 +152,12 @@ func testCheckFuncValidUUID(name string, key string) resource.TestCheckFunc {
 func modulePrimaryInstanceState(ms *terraform.ModuleState, name string) (*terraform.InstanceState, error) {
 	rs, ok := ms.Resources[name]
 	if !ok {
-		return nil, fmt.Errorf("Not found: %s in %s", name, ms.Path)
+		return nil, fmt.Errorf("not found: %s in %s", name, ms.Path)
 	}
 
 	is := rs.Primary
 	if is == nil {
-		return nil, fmt.Errorf("No primary instance: %s in %s", name, ms.Path)
+		return nil, fmt.Errorf("no primary instance: %s in %s", name, ms.Path)
 	}
 
 	return is, nil

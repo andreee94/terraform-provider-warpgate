@@ -103,7 +103,7 @@ func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	response, err := r.provider.client.CreateRoleWithResponse(ctx, warpgate.CreateRoleJSONBody{
-		Name: resourceState.Name,
+		Name: resourceState.Name.Value,
 	})
 
 	if err != nil {
@@ -191,7 +191,7 @@ func (r *roleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	resourceState.Name = response.JSON200.Name
+	resourceState.Name = types.String{Value: response.JSON200.Name}
 
 	// If applicable, this is a great opportunity to initialize any necessary
 	// provider client data and make a call using it.
@@ -226,7 +226,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	response, err := r.provider.client.UpdateRoleWithResponse(ctx, id_as_uuid, warpgate.UpdateRoleJSONBody{
-		Name: resourceState.Name,
+		Name: resourceState.Name.Value,
 	})
 
 	if err != nil {
@@ -245,7 +245,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourceState.Name {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourceState.Name.Value {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
@@ -256,7 +256,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 	resourceState.Id = types.String{Value: response.JSON200.Id.String()}
-	resourceState.Name = response.JSON200.Name
+	resourceState.Name = types.String{Value: response.JSON200.Name}
 
 	// If applicable, this is a great opportunity to initialize any necessary
 	// provider client data and make a call using it.

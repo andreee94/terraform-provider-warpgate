@@ -29,6 +29,12 @@ func TestAccHttpTargetResource(t *testing.T) {
 					testCheckFuncValidUUID("warpgate_http_target.test", "id"),
 				),
 			},
+			// ImportState testing
+			{
+				ResourceName:      "warpgate_http_target.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 			// Update and Read testing
 			{
 				Config: testAccHttpTargetResourceConfig("two", "20.20.20.20"),

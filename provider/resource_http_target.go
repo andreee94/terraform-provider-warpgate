@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"regexp"
 	provider_models "terraform-provider-warpgate/provider/models"
 	"terraform-provider-warpgate/provider/validators"
 	"terraform-provider-warpgate/warpgate"
@@ -11,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -60,7 +60,8 @@ func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 						Required: false,
 						Optional: true,
 						Validators: []tfsdk.AttributeValidator{
-							validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+							validators.IsDomain(),
+							// validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
 						},
 					},
 					"url": {
@@ -69,7 +70,8 @@ func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 						Required: true,
 						Optional: false,
 						Validators: []tfsdk.AttributeValidator{
-							validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+							validators.IsDomain(),
+							// validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
 						},
 					},
 					"headers": {
@@ -89,7 +91,12 @@ func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 								Required: true,
 								Optional: false,
 								Validators: []tfsdk.AttributeValidator{
-									validators.StringIn([]string{string(warpgate.Disabled), string(warpgate.Preferred), string(warpgate.Required)}, false),
+									stringvalidator.OneOf(
+										string(warpgate.Disabled),
+										string(warpgate.Preferred),
+										string(warpgate.Required),
+									),
+									// validators.StringIn([]string{string(warpgate.Disabled), string(warpgate.Preferred), string(warpgate.Required)}, false),
 								},
 							},
 							"verify": {
@@ -166,15 +173,15 @@ func (r *httpTargetResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	response, err := r.provider.client.CreateTargetWithResponse(ctx, warpgate.CreateTargetJSONBody{
-		Name: resourceState.Name,
+		Name: resourceState.Name.Value,
 		Options: warpgate.TargetOptionsTargetHTTPOptions{
 			Kind:         "Http",
 			ExternalHost: &resourceState.Options.ExternalHost.Value,
-			Url:          resourceState.Options.Url,
+			Url:          resourceState.Options.Url.Value,
 			Headers:      (*warpgate.TargetOptionsTargetHTTPOptions_Headers)(resourceState.Options.Headers),
 			Tls: warpgate.Tls{
-				Mode:   warpgate.TlsMode(resourceState.Options.Tls.Mode),
-				Verify: resourceState.Options.Tls.Verify,
+				Mode:   warpgate.TlsMode(resourceState.Options.Tls.Mode.Value),
+				Verify: resourceState.Options.Tls.Verify.Value,
 			},
 		},
 	})
@@ -262,11 +269,18 @@ func (r *httpTargetResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
-	resourceState.Name = response.JSON200.Name
-	resourceState.Options.ExternalHost = httpoptions.ExternalHost
-	resourceState.Options.Headers = httpoptions.Headers
-	resourceState.Options.Tls = httpoptions.Tls
-	resourceState.Options.Url = httpoptions.Url
+	resourceState.Name = types.String{Value: response.JSON200.Name}
+	resourceState.Options = &provider_models.TargetHttpOptions{
+		ExternalHost: httpoptions.ExternalHost,
+		Headers:      httpoptions.Headers,
+		Tls:          httpoptions.Tls,
+		Url:          httpoptions.Url,
+	}
+
+	// resourceState.Options.ExternalHost = httpoptions.ExternalHost
+	// resourceState.Options.Headers = httpoptions.Headers
+	// resourceState.Options.Tls = httpoptions.Tls
+	// resourceState.Options.Url = httpoptions.Url
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -303,15 +317,15 @@ func (r *httpTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	response, err := r.provider.client.UpdateTargetWithResponse(ctx, id_as_uuid, warpgate.UpdateTargetJSONBody{
-		Name: resourcePlan.Name,
+		Name: resourcePlan.Name.Value,
 		Options: warpgate.TargetOptionsTargetHTTPOptions{
 			Kind:         "Http",
 			ExternalHost: &resourcePlan.Options.ExternalHost.Value,
-			Url:          resourcePlan.Options.Url,
+			Url:          resourcePlan.Options.Url.Value,
 			Headers:      headers,
 			Tls: warpgate.Tls{
-				Mode:   warpgate.TlsMode(resourcePlan.Options.Tls.Mode),
-				Verify: resourcePlan.Options.Tls.Verify,
+				Mode:   warpgate.TlsMode(resourcePlan.Options.Tls.Mode.Value),
+				Verify: resourcePlan.Options.Tls.Verify.Value,
 			},
 		},
 	})
@@ -333,7 +347,7 @@ func (r *httpTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	// probably unnecessary check
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourcePlan.Name {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourcePlan.Name.Value {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
@@ -417,10 +431,10 @@ func ParseHttpOptions(options warpgate.TargetOptions) (*provider_models.TargetHt
 		}
 	}
 
-	result.Url = httpoptions.Url
-	result.Tls = provider_models.TargetTls{
-		Mode:   string(httpoptions.Tls.Mode),
-		Verify: httpoptions.Tls.Verify,
+	result.Url = types.String{Value: httpoptions.Url}
+	result.Tls = &provider_models.TargetTls{
+		Mode:   types.String{Value: string(httpoptions.Tls.Mode)},
+		Verify: types.Bool{Value: httpoptions.Tls.Verify},
 	}
 
 	return &result, err

@@ -42,6 +42,7 @@ func TestAccSshTargetListDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.warpgate_ssh_target_list.test", "targets.0.options.password", "A12345678"),
 
 					resource.TestCheckResourceAttr("data.warpgate_ssh_target_list.test", "targets.1.options.auth_kind", "PublicKey"),
+					resource.TestCheckNoResourceAttr("data.warpgate_ssh_target_list.test", "targets.1.options.password"),
 
 					testCheckFuncValidUUID("data.warpgate_ssh_target_list.test", "targets.0.id"),
 					testCheckFuncValidUUID("data.warpgate_ssh_target_list.test", "targets.1.id"),

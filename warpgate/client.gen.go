@@ -295,8 +295,8 @@ type UserAuthCredentialUserSsoCredential struct {
 
 // UserAuthCredentialUserTotpCredential defines model for UserAuthCredential_UserTotpCredential.
 type UserAuthCredentialUserTotpCredential struct {
-	Key  []uint8 `json:"key"`
-	Kind string  `json:"kind"`
+	Key  []uint16 `json:"key"`
+	Kind string   `json:"kind"`
 }
 
 // UserDataRequest defines model for UserDataRequest.
@@ -331,7 +331,7 @@ type UserSsoCredential struct {
 
 // UserTotpCredential defines model for UserTotpCredential.
 type UserTotpCredential struct {
-	Key []uint8 `json:"key"`
+	Key []uint16 `json:"key"`
 }
 
 // GetLogsJSONBody defines parameters for GetLogs.

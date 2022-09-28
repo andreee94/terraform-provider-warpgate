@@ -6,6 +6,7 @@ import (
 	"terraform-provider-warpgate/warpgate"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	provider_models "terraform-provider-warpgate/provider/models"
-	"terraform-provider-warpgate/provider/validators"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -67,7 +67,11 @@ func (r *sshTargetListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, 
 								Type:     types.StringType,
 								Computed: true,
 								Validators: []tfsdk.AttributeValidator{
-									validators.StringIn([]string{string(warpgate.Password), string(warpgate.PublicKey)}, false),
+									stringvalidator.OneOf(
+										string(warpgate.Password),
+										string(warpgate.PublicKey),
+									),
+									// validators.StringIn([]string{string(warpgate.Password), string(warpgate.PublicKey)}, false),
 								},
 							},
 							"password": {
@@ -194,15 +198,15 @@ func (d *sshTargetListDataSource) Read(ctx context.Context, req datasource.ReadR
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetSsh{
 			// AllowRoles: target.AllowRoles,
 			Id:         types.String{Value: target.Id.String()},
-			Name:       target.Name,
+			Name:       types.String{Value: target.Name},
 			AllowRoles: ArrayOfStringToTerraformSet(target.AllowRoles),
-			Options: provider_models.TargetSSHOptions{
+			Options: &provider_models.TargetSSHOptions{
 				Host:     sshoptions.Host,
 				Port:     sshoptions.Port,
 				Username: sshoptions.Username,
 				AuthKind: sshoptions.AuthKind,
 				Password: If(
-					sshoptions.AuthKind == string(warpgate.Password),
+					sshoptions.AuthKind.Value == string(warpgate.Password),
 					sshoptions.Password,
 					types.String{Null: true},
 				),

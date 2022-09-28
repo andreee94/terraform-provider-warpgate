@@ -33,6 +33,12 @@ func TestAccSshTargetPublicKeyResource(t *testing.T) {
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
 			},
+			// ImportState testing
+			{
+				ResourceName:      "warpgate_ssh_target.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 			// Update and Read testing
 			{
 				Config: testAccSshTargetPublicKeyResourceConfig("two", "20.20.20.20"),
@@ -82,6 +88,12 @@ func TestAccSshTargetPasswordResource(t *testing.T) {
 					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
+			},
+			// ImportState testing
+			{
+				ResourceName:      "warpgate_ssh_target.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 			// Update and Read testing
 			{
@@ -133,6 +145,12 @@ func TestAccSshTargetMixedAuthResource(t *testing.T) {
 					resource.TestCheckResourceAttr("warpgate_ssh_target.test", "allow_roles.#", "0"),
 					testCheckFuncValidUUID("warpgate_ssh_target.test", "id"),
 				),
+			},
+			// ImportState testing
+			{
+				ResourceName:      "warpgate_ssh_target.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 			// Update and Read testing
 			{
