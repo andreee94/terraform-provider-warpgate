@@ -6,7 +6,7 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=andreee94
 NAME=warpgate
 BINARY=terraform-provider-${NAME}
-VERSION=0.0.2
+VERSION=0.1.0
 OS_ARCH=linux_amd64
 
 GOBIN=~/go/bin
