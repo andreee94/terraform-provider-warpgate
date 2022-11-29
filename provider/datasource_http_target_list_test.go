@@ -62,10 +62,14 @@ provider "warpgate" {}
 resource "warpgate_http_target" "one" {
 	name = "one"
 	options = {
+		external_host = "192.168.1.1"
 		url = "10.10.10.10"
 		tls = {
 			mode = "Preferred" 
 			verify = true
+		}
+		headers = {
+			key = "value"
 		}
 	}
 }

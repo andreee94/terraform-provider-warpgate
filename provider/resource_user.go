@@ -2,12 +2,12 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	provider_models "terraform-provider-warpgate/provider/models"
 	"terraform-provider-warpgate/warpgate"
 
 	"github.com/google/uuid"
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -23,6 +23,15 @@ import (
 // Ensure provider defined types fully satisfy framework interfaces
 var _ resource.Resource = &userTargetResource{}
 var _ resource.ResourceWithImportState = &userTargetResource{}
+
+var credentialsAttributes = map[string]attr.Type{
+	"kind":       types.StringType,
+	"hash":       types.StringType,
+	"email":      types.StringType,
+	"provider":   types.StringType,
+	"public_key": types.StringType,
+	"totp_key":   types.ListType{ElemType: types.Int64Type},
+}
 
 func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
@@ -213,7 +222,7 @@ func (r *userTargetResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	response, err := r.provider.client.CreateUserWithResponse(ctx, warpgate.UserDataRequest{
-		Username:    resourceState.Username.Value,
+		Username:    resourceState.Username.ValueString(),
 		Credentials: GenerateWarpgateUserAuthCredentials(ctx, resourceState),
 		// CredentialPolicy: &warpgate.UserRequireCredentialsPolicy{},
 	})
@@ -234,7 +243,7 @@ func (r *userTargetResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	resourceState.Id = types.String{Value: response.JSON201.Id.String()}
+	resourceState.Id = types.StringValue(response.JSON201.Id.String())
 	resourceState.Roles = ArrayOfStringToTerraformSet(response.JSON201.Roles)
 
 	diags = resp.State.Set(ctx, &resourceState)
@@ -251,7 +260,7 @@ func (r *userTargetResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -308,6 +317,7 @@ func (r *userTargetResource) Read(ctx context.Context, req resource.ReadRequest,
 
 	resourceState.Roles = user.Roles
 	resourceState.Credentials = user.Credentials
+	// resourceState.Credentials = types.SetNull(types.ObjectType{AttrTypes: credentialsAttributes})
 	resourceState.Username = user.Username
 
 	diags = resp.State.Set(ctx, &resourceState)
@@ -324,7 +334,7 @@ func (r *userTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourcePlan.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourcePlan.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -335,7 +345,7 @@ func (r *userTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	response, err := r.provider.client.UpdateUserWithResponse(ctx, id_as_uuid, warpgate.UserDataRequest{
-		Username:    resourcePlan.Username.Value,
+		Username:    resourcePlan.Username.ValueString(),
 		Credentials: GenerateWarpgateUserAuthCredentials(ctx, resourcePlan),
 		// CredentialPolicy: &warpgate.UserRequireCredentialsPolicy{},
 	})
@@ -357,7 +367,7 @@ func (r *userTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	// probably unnecessary check
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Username != resourcePlan.Username.Value {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Username != resourcePlan.Username.ValueString() {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
@@ -384,7 +394,7 @@ func (r *userTargetResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -417,108 +427,98 @@ func (r *userTargetResource) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func ParseUserCredential(credential warpgate.UserAuthCredential) (result *types.Object, err error) {
+func ParseUserCredential(credential warpgate.UserAuthCredential) (result types.Object, err error) {
 
-	var kind struct {
-		Kind string `json:"kind"`
-	}
-	err = mapstructure.Decode(credential, &kind)
-
+	discriminator, err := credential.Discriminator()
 	if err != nil {
-		return nil, err
+		return types.ObjectNull(credentialsAttributes), err
 	}
 
-	result = &types.Object{
-		Attrs: map[string]attr.Value{
-			"kind":       types.String{Value: kind.Kind},
-			"hash":       types.String{Null: true},
-			"email":      types.String{Null: true},
-			"provider":   types.String{Null: true},
-			"public_key": types.String{Null: true},
-			"totp_key":   types.List{Null: true, ElemType: types.Int64Type},
-		},
-		AttrTypes: map[string]attr.Type{
-			"kind":       types.StringType,
-			"hash":       types.StringType,
-			"email":      types.StringType,
-			"provider":   types.StringType,
-			"public_key": types.StringType,
-			"totp_key":   types.ListType{ElemType: types.Int64Type},
-		},
+	value := map[string]attr.Value{
+		"kind":       types.StringNull(),
+		"hash":       types.StringNull(),
+		"email":      types.StringNull(),
+		"provider":   types.StringNull(),
+		"public_key": types.StringNull(),
+		"totp_key":   types.ListNull(types.Int64Type),
 	}
-	if kind.Kind == string(warpgate.Sso) {
 
-		c := &warpgate.UserAuthCredentialUserSsoCredential{}
-		err = mapstructure.Decode(credential, &c)
+	switch discriminator {
+	case "Password":
+		auth, err := credential.AsUserAuthCredentialUserPasswordCredential()
 
-		var provider types.String
-
-		if c.Provider == nil {
-			provider = types.String{Null: true}
-		} else {
-			provider = types.String{Value: *c.Provider}
+		if err != nil {
+			return types.ObjectNull(credentialsAttributes), err
 		}
 
-		result.Attrs["provider"] = provider
-		result.Attrs["email"] = types.String{Value: c.Email}
+		value["kind"] = types.StringValue(auth.Kind)
+		value["hash"] = types.StringValue(auth.Hash)
 
-	} else if kind.Kind == string(warpgate.Password) {
+	case "PublicKey":
+		auth, err := credential.AsUserAuthCredentialUserPublicKeyCredential()
 
-		c := &warpgate.UserAuthCredentialUserPasswordCredential{}
-		err = mapstructure.Decode(credential, &c)
+		if err != nil {
+			return types.ObjectNull(credentialsAttributes), err
+		}
 
-		result.Attrs["hash"] = types.String{Value: c.Hash}
+		value["kind"] = types.StringValue(auth.Kind)
+		value["public_key"] = types.StringValue(auth.Key)
 
-	} else if kind.Kind == string(warpgate.PublicKey) {
+	case "Sso":
+		auth, err := credential.AsUserAuthCredentialUserSsoCredential()
 
-		c := &warpgate.UserAuthCredentialUserPublicKeyCredential{}
-		err = mapstructure.Decode(credential, &c)
+		if err != nil {
+			return types.ObjectNull(credentialsAttributes), err
+		}
 
-		result.Attrs["public_key"] = types.String{Value: c.Key}
+		value["kind"] = types.StringValue(auth.Kind)
+		value["email"] = types.StringValue(auth.Email)
+		if auth.Provider != nil {
+			value["provider"] = types.StringValue(*auth.Provider)
+		}
 
-	} else if kind.Kind == string(warpgate.Totp) {
+	case "Totp":
+		auth, err := credential.AsUserAuthCredentialUserTotpCredential()
 
-		c := &warpgate.UserAuthCredentialUserTotpCredential{}
-		err = mapstructure.Decode(credential, &c)
+		if err != nil {
+			return types.ObjectNull(credentialsAttributes), err
+		}
 
-		result.Attrs["totp_key"] = ArrayOfUint16ToTerraformList(c.Key)
+		value["kind"] = types.StringValue(auth.Kind)
+		value["totp_key"] = ArrayOfUint16ToTerraformList(auth.Key)
+
+	default:
+		return types.ObjectNull(credentialsAttributes), errors.New("unknown discriminator value: " + discriminator)
 	}
 
+	result = types.ObjectValueMust(credentialsAttributes, value)
 	return
 }
 
 func ParseUser(user *warpgate.User) (result *provider_models.User, err error) {
+
 	result = &provider_models.User{
-		Id:       types.String{Value: user.Id.String()},
-		Username: types.String{Value: user.Username},
+		Id:       types.StringValue(user.Id.String()),
+		Username: types.StringValue(user.Username),
 		Roles:    ArrayOfStringToTerraformSet(user.Roles),
 	}
 
-	var userCredentials []attr.Value //[]models.UserAuthCredential
+	if len(user.Credentials) == 0 {
+		result.Credentials = types.SetNull(types.ObjectType{AttrTypes: credentialsAttributes})
+	} else {
+		var userCredentials []attr.Value //[]models.UserAuthCredential
 
-	for _, c := range user.Credentials {
-		credential, err := ParseUserCredential(c)
+		for _, c := range user.Credentials {
+			credential, err := ParseUserCredential(c)
 
-		if err != nil {
-			return nil, err
+			if err != nil {
+				return nil, err // todo maybe continue and not return
+			}
+
+			userCredentials = append(userCredentials, credential)
 		}
 
-		userCredentials = append(userCredentials, *credential)
-	}
-
-	result.Credentials = types.Set{
-		Null:  len(userCredentials) == 0,
-		Elems: userCredentials,
-		ElemType: types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"kind":       types.StringType,
-				"hash":       types.StringType,
-				"email":      types.StringType,
-				"provider":   types.StringType,
-				"public_key": types.StringType,
-				"totp_key":   types.ListType{ElemType: types.Int64Type},
-			},
-		},
+		result.Credentials = types.SetValueMust(types.ObjectType{AttrTypes: credentialsAttributes}, userCredentials)
 	}
 
 	return
@@ -536,27 +536,44 @@ func GenerateWarpgateUserAuthCredentials(ctx context.Context, user provider_mode
 
 		var credential warpgate.UserAuthCredential
 
-		if c.Kind.Value == string(warpgate.Sso) {
-			credential = warpgate.UserAuthCredentialUserSsoCredential{
-				Kind:     c.Kind.Value,
-				Email:    c.Email.Value,
-				Provider: &c.Provider.Value, // TODO check for null
-			}
-		} else if c.Kind.Value == string(warpgate.Password) {
-			credential = warpgate.UserAuthCredentialUserPasswordCredential{
-				Kind: c.Kind.Value,
-				Hash: c.Hash.Value,
-			}
-		} else if c.Kind.Value == string(warpgate.PublicKey) {
-			credential = warpgate.UserAuthCredentialUserPublicKeyCredential{
-				Kind: c.Kind.Value,
-				Key:  c.PublicKey.Value,
-			}
-		} else if c.Kind.Value == string(warpgate.Totp) {
-			credential = warpgate.UserAuthCredentialUserTotpCredential{
-				Kind: c.Kind.Value,
-				Key:  TerraformListToArrayOfUint16(c.TotpKey),
-			}
+		var provider *string
+
+		if c.Provider.IsNull() {
+			provider = nil
+		} else {
+			extractedProvider := c.Provider.ValueString()
+			provider = &extractedProvider
+		}
+
+		if c.Kind.ValueString() == string(warpgate.Sso) {
+			credential.FromUserAuthCredentialUserSsoCredential(
+				warpgate.UserAuthCredentialUserSsoCredential{
+					Kind:     c.Kind.ValueString(),
+					Email:    c.Email.ValueString(),
+					Provider: provider, // TODO check for null
+				},
+			)
+		} else if c.Kind.ValueString() == string(warpgate.Password) {
+			credential.FromUserAuthCredentialUserPasswordCredential(
+				warpgate.UserAuthCredentialUserPasswordCredential{
+					Kind: c.Kind.ValueString(),
+					Hash: c.Hash.ValueString(),
+				},
+			)
+		} else if c.Kind.ValueString() == string(warpgate.PublicKey) {
+			credential.FromUserAuthCredentialUserPublicKeyCredential(
+				warpgate.UserAuthCredentialUserPublicKeyCredential{
+					Kind: c.Kind.ValueString(),
+					Key:  c.PublicKey.ValueString(),
+				},
+			)
+		} else if c.Kind.ValueString() == string(warpgate.Totp) {
+			credential.FromUserAuthCredentialUserTotpCredential(
+				warpgate.UserAuthCredentialUserTotpCredential{
+					Kind: c.Kind.ValueString(),
+					Key:  TerraformListToArrayOfUint16(c.TotpKey),
+				},
+			)
 		}
 
 		result = append(result, credential)

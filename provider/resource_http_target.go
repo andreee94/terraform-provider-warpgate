@@ -8,7 +8,6 @@ import (
 	"terraform-provider-warpgate/warpgate"
 
 	"github.com/google/uuid"
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -20,12 +19,8 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-
-// var _ provider.ResourceType = httpTargetResourceType{}
 var _ resource.Resource = &httpTargetResource{}
 var _ resource.ResourceWithImportState = &httpTargetResource{}
-
-// type httpTargetResourceType struct{}
 
 func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
@@ -113,14 +108,6 @@ func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 	}, nil
 }
 
-// func (t httpTargetResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-//		return httpTargetResource{
-//			provider: provider,
-//		}, diags
-//	}
-
 func NewHttpTargetResource() resource.Resource {
 	return &httpTargetResource{}
 }
@@ -172,18 +159,29 @@ func (r *httpTargetResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	response, err := r.provider.client.CreateTargetWithResponse(ctx, warpgate.CreateTargetJSONBody{
-		Name: resourceState.Name.Value,
-		Options: warpgate.TargetOptionsTargetHTTPOptions{
-			Kind:         "Http",
-			ExternalHost: &resourceState.Options.ExternalHost.Value,
-			Url:          resourceState.Options.Url.Value,
-			Headers:      (*warpgate.TargetOptionsTargetHTTPOptions_Headers)(resourceState.Options.Headers),
+	var headers map[string]string
+	diags = resourceState.Options.Headers.ElementsAs(ctx, &headers, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var targetOptions = &warpgate.TargetOptions{}
+	targetOptions.FromTargetOptionsTargetHTTPOptions(
+		warpgate.TargetOptionsTargetHTTPOptions{
+			// Kind:         "Http",
+			ExternalHost: TerraformStringToNullableString(resourceState.Options.ExternalHost),
+			Url:          resourceState.Options.Url.ValueString(),
+			Headers:      &headers,
 			Tls: warpgate.Tls{
-				Mode:   warpgate.TlsMode(resourceState.Options.Tls.Mode.Value),
-				Verify: resourceState.Options.Tls.Verify.Value,
+				Mode:   warpgate.TlsMode(resourceState.Options.Tls.Mode.ValueString()),
+				Verify: resourceState.Options.Tls.Verify.ValueBool(),
 			},
-		},
+		})
+
+	response, err := r.provider.client.CreateTargetWithResponse(ctx, warpgate.CreateTargetJSONRequestBody{
+		Name:    resourceState.Name.ValueString(),
+		Options: *targetOptions,
 	})
 
 	if err != nil {
@@ -202,8 +200,14 @@ func (r *httpTargetResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	resourceState.Id = types.String{Value: response.JSON201.Id.String()}
+	resourceState.Id = types.StringValue(response.JSON201.Id.String())
 	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON201.AllowRoles)
+	// resourceState.Options = &provider_models.TargetHttpOptions{
+	// 	ExternalHost: resourceState.Options.ExternalHost,
+	// 	Url:          resourceState.Options.Url,
+	// 	Tls:          resourceState.Options.Tls,
+	// 	Headers:      resourceState.Options.Headers,
+	// }
 
 	// TODO maybe do not save the password into the state
 
@@ -221,7 +225,7 @@ func (r *httpTargetResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -269,18 +273,13 @@ func (r *httpTargetResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	resourceState.AllowRoles = ArrayOfStringToTerraformSet(response.JSON200.AllowRoles)
-	resourceState.Name = types.String{Value: response.JSON200.Name}
+	resourceState.Name = types.StringValue(response.JSON200.Name)
 	resourceState.Options = &provider_models.TargetHttpOptions{
 		ExternalHost: httpoptions.ExternalHost,
 		Headers:      httpoptions.Headers,
 		Tls:          httpoptions.Tls,
 		Url:          httpoptions.Url,
 	}
-
-	// resourceState.Options.ExternalHost = httpoptions.ExternalHost
-	// resourceState.Options.Headers = httpoptions.Headers
-	// resourceState.Options.Tls = httpoptions.Tls
-	// resourceState.Options.Url = httpoptions.Url
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -296,7 +295,7 @@ func (r *httpTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourcePlan.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourcePlan.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -306,28 +305,29 @@ func (r *httpTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	var headers *warpgate.TargetOptionsTargetHTTPOptions_Headers
-
-	if resourcePlan.Options.Headers == nil {
-		headers = nil
-	} else {
-		headers = &warpgate.TargetOptionsTargetHTTPOptions_Headers{
-			AdditionalProperties: resourcePlan.Options.Headers.AdditionalProperties,
-		}
+	var headers map[string]string
+	diags = resourcePlan.Options.Headers.ElementsAs(ctx, &headers, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	response, err := r.provider.client.UpdateTargetWithResponse(ctx, id_as_uuid, warpgate.UpdateTargetJSONBody{
-		Name: resourcePlan.Name.Value,
-		Options: warpgate.TargetOptionsTargetHTTPOptions{
-			Kind:         "Http",
-			ExternalHost: &resourcePlan.Options.ExternalHost.Value,
-			Url:          resourcePlan.Options.Url.Value,
-			Headers:      headers,
+	var targetOptions = &warpgate.TargetOptions{}
+	targetOptions.FromTargetOptionsTargetHTTPOptions(
+		warpgate.TargetOptionsTargetHTTPOptions{
+			// Kind:         "Http",
+			ExternalHost: TerraformStringToNullableString(resourcePlan.Options.ExternalHost),
+			Url:          resourcePlan.Options.Url.ValueString(),
+			Headers:      &headers,
 			Tls: warpgate.Tls{
-				Mode:   warpgate.TlsMode(resourcePlan.Options.Tls.Mode.Value),
-				Verify: resourcePlan.Options.Tls.Verify.Value,
+				Mode:   warpgate.TlsMode(resourcePlan.Options.Tls.Mode.ValueString()),
+				Verify: resourcePlan.Options.Tls.Verify.ValueBool(),
 			},
-		},
+		})
+
+	response, err := r.provider.client.UpdateTargetWithResponse(ctx, id_as_uuid, warpgate.UpdateTargetJSONRequestBody{
+		Name:    resourcePlan.Name.ValueString(),
+		Options: *targetOptions,
 	})
 
 	if err != nil {
@@ -347,7 +347,7 @@ func (r *httpTargetResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	// probably unnecessary check
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourcePlan.Name.Value {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourcePlan.Name.ValueString() {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
@@ -375,7 +375,7 @@ func (r *httpTargetResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -408,34 +408,32 @@ func (r *httpTargetResource) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func ParseHttpOptions(options warpgate.TargetOptions) (*provider_models.TargetHttpOptions, error) {
-	var result provider_models.TargetHttpOptions
-	var httpoptions warpgate.TargetOptionsTargetHTTPOptions
-	err := mapstructure.Decode(options, &httpoptions)
+func ParseHttpOptions(options warpgate.TargetOptions) (result *provider_models.TargetHttpOptions, err error) {
+	result = &provider_models.TargetHttpOptions{}
+
+	httpoptions, err := options.AsTargetOptionsTargetHTTPOptions()
 
 	if err != nil {
 		return nil, err
 	}
 
 	if httpoptions.ExternalHost == nil {
-		result.ExternalHost = types.String{Null: true}
+		result.ExternalHost = types.StringNull()
 	} else {
-		result.ExternalHost = types.String{Value: *httpoptions.ExternalHost}
+		result.ExternalHost = types.StringValue(*httpoptions.ExternalHost)
+	}
+
+	result.Url = types.StringValue(httpoptions.Url)
+	result.Tls = &provider_models.TargetTls{
+		Mode:   types.StringValue(string(httpoptions.Tls.Mode)),
+		Verify: types.BoolValue(httpoptions.Tls.Verify),
 	}
 
 	if httpoptions.Headers == nil {
-		result.Headers = nil
-	} else {
-		result.Headers = &provider_models.TargetHttpOptions_Headers{
-			AdditionalProperties: httpoptions.Headers.AdditionalProperties,
-		}
+		result.Headers = types.MapNull(types.StringType)
 	}
 
-	result.Url = types.String{Value: httpoptions.Url}
-	result.Tls = &provider_models.TargetTls{
-		Mode:   types.String{Value: string(httpoptions.Tls.Mode)},
-		Verify: types.Bool{Value: httpoptions.Tls.Verify},
-	}
+	result.Headers, _ = types.MapValueFrom(context.TODO(), types.StringType, httpoptions.Headers)
 
-	return &result, err
+	return result, err
 }

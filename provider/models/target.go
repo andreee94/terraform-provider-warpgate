@@ -33,15 +33,16 @@ type TargetHttp struct {
 }
 
 type TargetHttpOptions struct {
-	ExternalHost types.String               `tfsdk:"external_host"`
-	Url          types.String               `tfsdk:"url"`
-	Tls          *TargetTls                 `tfsdk:"tls"`
-	Headers      *TargetHttpOptions_Headers `tfsdk:"headers"`
+	ExternalHost types.String `tfsdk:"external_host"`
+	Url          types.String `tfsdk:"url"`
+	Tls          *TargetTls   `tfsdk:"tls"`
+	Headers      types.Map    `tfsdk:"headers"`
+	// Headers      *map[string]string `tfsdk:"headers"`
 }
 
-type TargetHttpOptions_Headers struct {
-	AdditionalProperties map[string]string `tfsdk:"-"`
-}
+// type TargetHttpOptions_Headers struct {
+// 	AdditionalProperties map[string]string `tfsdk:"-"`
+// }
 
 type TargetTls struct {
 	Mode   types.String `tfsdk:"mode"`

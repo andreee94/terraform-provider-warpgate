@@ -17,11 +17,8 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.ResourceType = userRolesResourceType{}
 var _ resource.Resource = &userRolesResource{}
 var _ resource.ResourceWithImportState = &userRolesResource{}
-
-// type userRolesResourceType struct{}
 
 func (r *userRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
@@ -55,13 +52,9 @@ func (r *userRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.D
 	}, nil
 }
 
-// func (t userRolesResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-// 	return userRolesResource{
-// 		provider: provider,
-// 	}, diags
-// }
+type userRolesResource struct {
+	provider *warpgateProvider
+}
 
 func NewUserRolesResource() resource.Resource {
 	return &userRolesResource{}
@@ -100,10 +93,6 @@ func (r *userRolesResource) Configure(ctx context.Context, req resource.Configur
 	r.provider = provider
 }
 
-type userRolesResource struct {
-	provider *warpgateProvider
-}
-
 func (r *userRolesResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var resourceState provider_models.UserRoles
 
@@ -114,7 +103,7 @@ func (r *userRolesResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	userUUID, err := uuid.Parse(resourceState.Id.Value)
+	userUUID, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -124,7 +113,7 @@ func (r *userRolesResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	for _, roleId := range resourceState.RoleIds.Elems {
+	for _, roleId := range resourceState.RoleIds.Elements() {
 
 		roleUUID, err := uuid.Parse(roleId.String())
 
@@ -169,7 +158,7 @@ func (r *userRolesResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	userUUID, err := uuid.Parse(resourceState.Id.Value)
+	userUUID, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -200,7 +189,7 @@ func (r *userRolesResource) Read(ctx context.Context, req resource.ReadRequest, 
 	if response.JSON200 != nil {
 		resourceState.RoleIds = ArrayOfRolesToTerraformSet(*response.JSON200)
 	} else {
-		resourceState.RoleIds = types.Set{ElemType: types.StringType}
+		resourceState.RoleIds = types.SetNull(types.StringType)
 	}
 
 	diags = resp.State.Set(ctx, &resourceState)
@@ -221,7 +210,7 @@ func (r *userRolesResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	userUUID, err := uuid.Parse(resourcePlan.Id.Value)
+	userUUID, err := uuid.Parse(resourcePlan.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -316,7 +305,7 @@ func (r *userRolesResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	userUUID, err := uuid.Parse(resourceState.Id.Value)
+	userUUID, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -326,7 +315,7 @@ func (r *userRolesResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	for _, roleId := range resourceState.RoleIds.Elems {
+	for _, roleId := range resourceState.RoleIds.Elements() {
 
 		roleUUID, err := uuid.Parse(roleId.String())
 

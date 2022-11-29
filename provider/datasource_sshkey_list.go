@@ -15,10 +15,7 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.DataSourceType = sshkeyListDataSourceType{}
 var _ datasource.DataSource = &sshkeyListDataSource{}
-
-// type sshkeyListDataSourceType struct{}
 
 func (d *sshkeyListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
@@ -53,14 +50,6 @@ func (d *sshkeyListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, dia
 func NewSshkeyListDataSource() datasource.DataSource {
 	return &sshkeyListDataSource{}
 }
-
-// func (d *sshkeyListDataSource) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-// 	return sshkeyListDataSource{
-// 		provider: provider,
-// 	}, diags
-// }
 
 type sshkeyListDataSource struct {
 	provider *warpgateProvider
@@ -142,13 +131,13 @@ func (d *sshkeyListDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		}
 
 		resourceState.SshKeys = append(resourceState.SshKeys, provider_models.SshKey{
-			Kind:            types.String{Value: sshkey.Kind},
-			PublicKeyBase64: types.String{Value: sshkey.PublicKeyBase64},
+			Kind:            types.StringValue(sshkey.Kind),
+			PublicKeyBase64: types.StringValue(sshkey.PublicKeyBase64),
 		})
 	}
 
 	randomUUID, _ := uuid.NewRandom()
-	resourceState.Id = types.String{Value: randomUUID.String()}
+	resourceState.Id = types.StringValue(randomUUID.String())
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)

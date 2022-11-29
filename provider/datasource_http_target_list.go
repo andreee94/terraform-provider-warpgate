@@ -15,10 +15,7 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.DataSourceType = httpTargetListDataSourceType{}
 var _ datasource.DataSource = &httpTargetListDataSource{}
-
-// type httpTargetListDataSourceType struct{}
 
 func NewHttpTargetListDataSource() datasource.DataSource {
 	return &httpTargetListDataSource{}
@@ -81,14 +78,6 @@ func (d *httpTargetListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema,
 		},
 	}, nil
 }
-
-// func (d *httpTargetListDataSource) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-// 	return httpTargetListDataSource{
-// 		provider: provider,
-// 	}, diags
-// }
 
 type httpTargetListDataSource struct {
 	provider *warpgateProvider
@@ -169,42 +158,21 @@ func (d *httpTargetListDataSource) Read(ctx context.Context, req datasource.Read
 
 		httpoptions, err := ParseHttpOptions(target.Options)
 
-		// var httpoptions *warpgate.TargetOptionsTargetHTTPOptions
-		// err = mapstructure.Decode(target.Options, &httpoptions)
-
 		if err != nil || httpoptions == nil {
 			tflog.Info(ctx, fmt.Sprintf("Target %v is not http, skipping.", target))
 			continue
 		}
 
-		var headers *provider_models.TargetHttpOptions_Headers
-
-		if httpoptions.Headers == nil {
-			headers = nil
-		} else {
-			headers = &provider_models.TargetHttpOptions_Headers{
-				AdditionalProperties: httpoptions.Headers.AdditionalProperties,
-			}
-		}
-
-		// var externalHost types.String
-
-		// if httpoptions.ExternalHost != nil {
-		// 	externalHost = types.String{Value: *httpoptions.ExternalHost}
-		// } else {
-		// 	externalHost = types.String{Null: true}
-		// }
-
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetHttp{
 			AllowRoles: ArrayOfStringToTerraformSet(target.AllowRoles),
-			Id:         types.String{Value: target.Id.String()},
-			Name:       types.String{Value: target.Name},
+			Id:         types.StringValue(target.Id.String()),
+			Name:       types.StringValue(target.Name),
 			Options: &provider_models.TargetHttpOptions{
 				ExternalHost: httpoptions.ExternalHost,
 				Url:          httpoptions.Url,
-				Headers:      headers,
+				Headers:      httpoptions.Headers,
 				Tls: &provider_models.TargetTls{
-					Mode:   types.String{Value: string(httpoptions.Tls.Mode.Value)},
+					Mode:   types.StringValue(httpoptions.Tls.Mode.ValueString()),
 					Verify: httpoptions.Tls.Verify,
 				},
 			},
@@ -212,7 +180,7 @@ func (d *httpTargetListDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	randomUUID, _ := uuid.NewRandom()
-	resourceState.Id = types.String{Value: randomUUID.String()}
+	resourceState.Id = types.StringValue(randomUUID.String())
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)

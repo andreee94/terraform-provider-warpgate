@@ -17,11 +17,8 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.ResourceType = targetRolesResourceType{}
 var _ resource.Resource = &targetRolesResource{}
 var _ resource.ResourceWithImportState = &targetRolesResource{}
-
-// type targetRolesResourceType struct{}
 
 func (r *targetRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
@@ -54,14 +51,6 @@ func (r *targetRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag
 		},
 	}, nil
 }
-
-// func (t targetRolesResourceType) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-// 	return targetRolesResource{
-// 		provider: provider,
-// 	}, diags
-// }
 
 func NewTargetRolesResource() resource.Resource {
 	return &targetRolesResource{}
@@ -114,7 +103,7 @@ func (r *targetRolesResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourceState.Id.Value)
+	targetUUID, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -125,7 +114,7 @@ func (r *targetRolesResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// for _, roleId := range GetArraySortedToString(resourceState.RoleIds) {
-	for _, roleId := range resourceState.RoleIds.Elems {
+	for _, roleId := range resourceState.RoleIds.Elements() {
 
 		roleUUID, err := uuid.Parse(roleId.String())
 
@@ -169,7 +158,7 @@ func (r *targetRolesResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourceState.Id.Value)
+	targetUUID, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -199,12 +188,8 @@ func (r *targetRolesResource) Read(ctx context.Context, req resource.ReadRequest
 
 	if response.JSON200 != nil {
 		resourceState.RoleIds = ArrayOfRolesToTerraformSet(*response.JSON200)
-
-		// for _, role := range *response.JSON200 {
-		// 	resourceState.RoleIds = append(resourceState.RoleIds, role.Id.String())
-		// }
 	} else {
-		resourceState.RoleIds = types.Set{ElemType: types.StringType}
+		resourceState.RoleIds = types.SetNull(types.StringType)
 	}
 
 	diags = resp.State.Set(ctx, &resourceState)
@@ -225,7 +210,7 @@ func (r *targetRolesResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourcePlan.Id.Value)
+	targetUUID, err := uuid.Parse(resourcePlan.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -320,7 +305,7 @@ func (r *targetRolesResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	targetUUID, err := uuid.Parse(resourceState.Id.Value)
+	targetUUID, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -330,7 +315,7 @@ func (r *targetRolesResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 
-	for _, roleId := range resourceState.RoleIds.Elems {
+	for _, roleId := range resourceState.RoleIds.Elements() {
 
 		roleUUID, err := uuid.Parse(roleId.String())
 
@@ -364,42 +349,6 @@ func (r *targetRolesResource) Delete(ctx context.Context, req resource.DeleteReq
 			return
 		}
 	}
-
-	// id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
-
-	// if err != nil {
-	// 	resp.Diagnostics.AddError(
-	// 		"Failed to parse the id as uuid",
-	// 		fmt.Sprintf("Failed to parse the id '%s' as uuid", resourceState.Id),
-	// 	)
-	// 	return
-	// }
-
-	// response, err := r.provider.client.DeleteRoleWithResponse(ctx, id_as_uuid)
-
-	// if err != nil {
-	// 	resp.Diagnostics.AddError(
-	// 		"Failed to delete role",
-	// 		fmt.Sprintf("Failed to delete role with id '%s'. (Error: %s)", resourceState.Id, err),
-	// 	)
-	// 	return
-	// }
-
-	// if response.StatusCode() != 204 {
-	// 	resp.Diagnostics.AddError(
-	// 		"Failed to delete role, wrong error code.",
-	// 		fmt.Sprintf("Failed to delete role. (Error code: %d)", response.StatusCode()),
-	// 	)
-	// 	return
-	// }
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// example, err := d.provider.client.DeleteExample(...)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete example, got error: %s", err))
-	//     return
-	// }
 }
 
 func (r *targetRolesResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

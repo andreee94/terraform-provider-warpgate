@@ -16,11 +16,8 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.ResourceType = roleResourceType{}
 var _ resource.Resource = &roleResource{}
 var _ resource.ResourceWithImportState = &roleResource{}
-
-// type roleResourceType struct{}
 
 func (r *roleResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
@@ -49,14 +46,6 @@ func NewRoleResource() resource.Resource {
 func (r *roleResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_role"
 }
-
-// func (r *roleResource) NewResource(ctx context.Context, in provider.Provider) (resource.Resource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-// 	return roleResource{
-// 		provider: provider,
-// 	}, diags
-// }
 
 func (r *roleResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
@@ -102,8 +91,8 @@ func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	response, err := r.provider.client.CreateRoleWithResponse(ctx, warpgate.CreateRoleJSONBody{
-		Name: resourceState.Name.Value,
+	response, err := r.provider.client.CreateRoleWithResponse(ctx, warpgate.CreateRoleJSONRequestBody{
+		Name: resourceState.Name.ValueString(),
 	})
 
 	if err != nil {
@@ -122,23 +111,7 @@ func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	resourceState.Id = types.String{Value: response.JSON201.Id.String()}
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// example, err := d.provider.client.CreateExample(...)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create example, got error: %s", err))
-	//     return
-	// }
-
-	// For the purposes of this example code, hardcoding a response value to
-	// save into the Terraform state.
-	// data.Id = types.String{Value: "example-id"}
-
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
-	// tflog.Trace(ctx, "created a resource")
+	resourceState.Id = types.StringValue(response.JSON201.Id.String())
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -154,7 +127,7 @@ func (r *roleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -191,15 +164,7 @@ func (r *roleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	resourceState.Name = types.String{Value: response.JSON200.Name}
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// example, err := d.provider.client.ReadExample(...)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read example, got error: %s", err))
-	//     return
-	// }
+	resourceState.Name = types.StringValue(response.JSON200.Name)
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -215,7 +180,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -225,8 +190,8 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	response, err := r.provider.client.UpdateRoleWithResponse(ctx, id_as_uuid, warpgate.UpdateRoleJSONBody{
-		Name: resourceState.Name.Value,
+	response, err := r.provider.client.UpdateRoleWithResponse(ctx, id_as_uuid, warpgate.UpdateRoleJSONRequestBody{
+		Name: resourceState.Name.ValueString(),
 	})
 
 	if err != nil {
@@ -245,7 +210,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourceState.Name.Value {
+	if response.JSON200.Id != id_as_uuid || response.JSON200.Name != resourceState.Name.ValueString() {
 		resp.Diagnostics.AddWarning(
 			"Created resource is different from requested.",
 			fmt.Sprintf("Created resource is different from requested. Requested: (%s, %s), Created: (%s, %s)",
@@ -255,16 +220,8 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		)
 		return
 	}
-	resourceState.Id = types.String{Value: response.JSON200.Id.String()}
-	resourceState.Name = types.String{Value: response.JSON200.Name}
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// example, err := d.provider.client.UpdateExample(...)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update example, got error: %s", err))
-	//     return
-	// }
+	resourceState.Id = types.StringValue(response.JSON200.Id.String())
+	resourceState.Name = types.StringValue(response.JSON200.Name)
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)
@@ -280,7 +237,7 @@ func (r *roleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	id_as_uuid, err := uuid.Parse(resourceState.Id.Value)
+	id_as_uuid, err := uuid.Parse(resourceState.Id.ValueString())
 
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -307,14 +264,6 @@ func (r *roleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		)
 		return
 	}
-
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// example, err := d.provider.client.DeleteExample(...)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete example, got error: %s", err))
-	//     return
-	// }
 }
 
 func (r *roleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

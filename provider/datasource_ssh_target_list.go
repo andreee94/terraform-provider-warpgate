@@ -17,14 +17,11 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.DataSourceType = sshTargetListDataSourceType{}
 var _ datasource.DataSource = &sshTargetListDataSource{}
 
 func NewSshTargetListDataSource() datasource.DataSource {
 	return &sshTargetListDataSource{}
 }
-
-// type sshTargetListDataSourceType struct{}
 
 func (r *sshTargetListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
@@ -86,14 +83,6 @@ func (r *sshTargetListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, 
 		},
 	}, nil
 }
-
-// func (t sshTargetListDataSourceType) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-// 	return sshTargetListDataSource{
-// 		provider: provider,
-// 	}, diags
-// }
 
 type sshTargetListDataSource struct {
 	provider *warpgateProvider
@@ -187,18 +176,10 @@ func (d *sshTargetListDataSource) Read(ctx context.Context, req datasource.ReadR
 			continue
 		}
 
-		// var sshoptions warpgate.TargetOptionsTargetSSHOptions
-		// err = mapstructure.Decode(target.Options, &sshoptions)
-
-		// if err != nil || sshoptions.Kind != "Ssh" {
-		// 	tflog.Info(ctx, fmt.Sprintf("Target %v is not ssh, skipping.", target))
-		// 	continue
-		// }
-
 		resourceState.Targets = append(resourceState.Targets, provider_models.TargetSsh{
 			// AllowRoles: target.AllowRoles,
-			Id:         types.String{Value: target.Id.String()},
-			Name:       types.String{Value: target.Name},
+			Id:         types.StringValue(target.Id.String()),
+			Name:       types.StringValue(target.Name),
 			AllowRoles: ArrayOfStringToTerraformSet(target.AllowRoles),
 			Options: &provider_models.TargetSSHOptions{
 				Host:     sshoptions.Host,
@@ -206,28 +187,16 @@ func (d *sshTargetListDataSource) Read(ctx context.Context, req datasource.ReadR
 				Username: sshoptions.Username,
 				AuthKind: sshoptions.AuthKind,
 				Password: If(
-					sshoptions.AuthKind.Value == string(warpgate.Password),
+					sshoptions.AuthKind.ValueString() == string(warpgate.Password),
 					sshoptions.Password,
-					types.String{Null: true},
+					types.StringNull(),
 				),
 			},
 		})
-
-		// resourceState.Targets = append(resourceState.Targets, provider_models.Target{
-		// 	// AllowRoles: rules,
-		// 	Id:   types.String{Value: target.Id.String()},
-		// 	Name: types.String{Value: target.Name},
-		// 	Options: provider_models.TargetOptionsTargetSSHOptions{
-		// 		Host: types.String{Value: sshoptions.Host},
-		// 		// Kind:     types.String{Value: sshoptions.Kind},
-		// 		Port:     types.Int64{Value: int64(sshoptions.Port)},
-		// 		Username: types.String{Value: sshoptions.Username},
-		// 	},
-		// })
 	}
 
 	randomUUID, _ := uuid.NewRandom()
-	resourceState.Id = types.String{Value: randomUUID.String()}
+	resourceState.Id = types.StringValue(randomUUID.String())
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)

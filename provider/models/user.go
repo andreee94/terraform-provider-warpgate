@@ -38,7 +38,7 @@ type UserAuthCredential struct {
 }
 
 func (u User) CredentialsAsArray(ctx context.Context) ([]UserAuthCredential, error) {
-	if u.Credentials.Null {
+	if u.Credentials.IsNull() {
 		return nil, nil
 	}
 

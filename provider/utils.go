@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"terraform-provider-warpgate/warpgate"
 
@@ -47,46 +48,81 @@ func ArrayIntersection[K comparable](a []K, b []K) (inAAndB []K, inAButNotB []K,
 func ArrayOfStringToTerraformSet(array []string) (result types.Set) {
 	// sort.Strings(array)
 
-	result.ElemType = types.StringType
+	// if len(array) == 0 {
+	// 	result = types.SetNull(types.StringType)
+	// } else {
+	result, _ = types.SetValueFrom(context.Background(), types.StringType, array)
+	// }
 
-	for _, v := range array {
-		result.Elems = append(result.Elems, types.String{Value: v})
-	}
+	// result.ElemType = types.StringType
+
+	// for _, v := range array {
+	// 	result.Elems = append(result.Elems, types.String{Value: v})
+	// }
 	return
 }
 
 func ArrayOfUint8ToTerraformList(array []uint8) (result types.List) {
 	// sort.Strings(array)
 
-	result.ElemType = types.Int64Type
+	// if len(array) == 0 {
+	// 	result = types.ListNull(types.StringType)
+	// } else {
+	var arrayInt64 []types.Int64
 
 	for _, v := range array {
-		result.Elems = append(result.Elems, types.Int64{Value: int64(v)})
+		arrayInt64 = append(arrayInt64, types.Int64Value(int64(v)))
 	}
+
+	result, _ = types.ListValueFrom(context.Background(), types.Int64Type, arrayInt64)
+	// }
+
+	// result.ElemType = types.Int64Type
+
+	// for _, v := range array {
+	// 	result.Elems = append(result.Elems, types.Int64{Value: int64(v)})
+	// }
 	return
 }
 
 func ArrayOfUint16ToTerraformList(array []uint16) (result types.List) {
 	// sort.Strings(array)
 
-	result.ElemType = types.Int64Type
+	// if len(array) == 0 {
+	// 	result = types.ListNull(types.StringType)
+	// } else {
+	var arrayInt64 []types.Int64
 
 	for _, v := range array {
-		result.Elems = append(result.Elems, types.Int64{Value: int64(v)})
+		arrayInt64 = append(arrayInt64, types.Int64Value(int64(v)))
 	}
+
+	result, _ = types.ListValueFrom(context.Background(), types.Int64Type, arrayInt64)
+	// }
+	// result.ElemType = types.Int64Type
+
+	// for _, v := range array {
+	// 	result.Elems = append(result.Elems, types.Int64{Value: int64(v)})
+	// }
 	return
 }
 
 func TerraformListToArrayOfUint8(list types.List) (result []uint8) {
-	for _, v := range list.Elems {
-		result = append(result, uint8(v.(types.Int64).Value))
+
+	if list.IsNull() || list.IsUnknown() {
+		return
+	} else {
+
+		for _, v := range list.Elements() {
+			result = append(result, uint8(v.(types.Int64).ValueInt64()))
+		}
 	}
 	return
 }
 
 func TerraformListToArrayOfUint16(list types.List) (result []uint16) {
-	for _, v := range list.Elems {
-		result = append(result, uint16(v.(types.Int64).Value))
+	for _, v := range list.Elements() {
+		result = append(result, uint16(v.(types.Int64).ValueInt64()))
 	}
 	return
 }
@@ -107,6 +143,15 @@ func ArrayOfRolesToTerraformSet(array []warpgate.Role) (result types.Set) {
 	// 	result.Elems = append(result.Elems, types.String{Value: v.Id.String()})
 	// }
 	// return
+}
+
+func TerraformStringToNullableString(str types.String) *string {
+	if str.IsNull() {
+		return nil
+	} else {
+		value := str.ValueString()
+		return &value
+	}
 }
 
 // func GetArraySortedToString(list types.List) (result []string) {

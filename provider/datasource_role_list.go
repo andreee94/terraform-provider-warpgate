@@ -15,10 +15,7 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-// var _ provider.DataSourceType = roleListDataSourceType{}
 var _ datasource.DataSource = &roleListDataSource{}
-
-// type roleListDataSourceType struct{}
 
 func NewRoleListDataSource() datasource.DataSource {
 	return &roleListDataSource{}
@@ -47,14 +44,6 @@ func (r *roleListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 		},
 	}, nil
 }
-
-// func (t roleListDataSourceType) NewDataSource(ctx context.Context, in provider.Provider) (datasource.DataSource, diag.Diagnostics) {
-// 	provider, diags := convertProviderType(in)
-
-// 	return roleListDataSource{
-// 		provider: provider,
-// 	}, diags
-// }
 
 type roleListDataSource struct {
 	provider *warpgateProvider
@@ -132,13 +121,13 @@ func (d *roleListDataSource) Read(ctx context.Context, req datasource.ReadReques
 		tflog.Trace(ctx, fmt.Sprintf("Found %v", role))
 
 		resourceState.Roles = append(resourceState.Roles, provider_models.Role{
-			Id:   types.String{Value: role.Id.String()},
-			Name: types.String{Value: role.Name},
+			Id:   types.StringValue(role.Id.String()),
+			Name: types.StringValue(role.Name),
 		})
 	}
 
 	randomUUID, _ := uuid.NewRandom()
-	resourceState.Id = types.String{Value: randomUUID.String()}
+	resourceState.Id = types.StringValue(randomUUID.String())
 
 	diags = resp.State.Set(ctx, &resourceState)
 	resp.Diagnostics.Append(diags...)

@@ -18,15 +18,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// var stderr = os.Stderr
-
-//	func New(version string) func() provider.Provider {
-//		return func() provider.Provider {
-//			return &warpgateProvider{
-//				version: version,
-//			}
-//		}
-//	}
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
 		return &warpgateProvider{
@@ -35,30 +26,6 @@ func New(version string) func() provider.Provider {
 	}
 }
 
-// func convertProviderType(in provider.Provider) (warpgateProvider, diag.Diagnostics) {
-// 	var diags diag.Diagnostics
-
-// 	p, ok := in.(*warpgateProvider)
-
-// 	if !ok {
-// 		diags.AddError(
-// 			"Unexpected Provider Instance Type",
-// 			fmt.Sprintf("While creating the data source or resource, an unexpected provider type (%T) was received. This is always a bug in the provider code and should be reported to the provider developers.", p),
-// 		)
-// 		return warpgateProvider{}, diags
-// 	}
-
-// 	if p == nil {
-// 		diags.AddError(
-// 			"Unexpected Provider Instance Type",
-// 			"While creating the data source or resource, an unexpected empty provider instance was received. This is always a bug in the provider code and should be reported to the provider developers.",
-// 		)
-// 		return warpgateProvider{}, diags
-// 	}
-
-// 	return *p, diags
-// }
-
 var _ provider.Provider = &warpgateProvider{}
 var _ provider.ProviderWithMetadata = &warpgateProvider{}
 
@@ -66,7 +33,6 @@ type warpgateProvider struct {
 	configured bool
 	version    string
 	client     *warpgate.WarpgateClient
-	// router     *warpgate.warpgateRouter
 }
 
 func (p *warpgateProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -158,19 +124,19 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	if config.Host.Null {
+	if config.Host.IsNull() {
 		host = os.Getenv("WARPGATE_HOST")
 	} else {
-		host = config.Host.Value
+		host = config.Host.ValueString()
 	}
 
-	if config.Username.Null {
+	if config.Username.IsNull() {
 		username = os.Getenv("WARPGATE_USERNAME")
 	} else {
-		username = config.Username.Value
+		username = config.Username.ValueString()
 	}
 
-	if config.Port.Null {
+	if config.Port.IsNull() {
 		portString := os.Getenv("WARPGATE_PORT")
 		if portString == "" {
 			port = 8888
@@ -185,16 +151,16 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 			}
 		}
 	} else {
-		port = int(config.Port.Value)
+		port = int(config.Port.ValueInt64())
 	}
 
-	if config.Password.Null {
+	if config.Password.IsNull() {
 		password = os.Getenv("WARPGATE_PASSWORD")
 	} else {
-		password = config.Password.Value
+		password = config.Password.ValueString()
 	}
 
-	if config.InsecureSkipVerify.Null {
+	if config.InsecureSkipVerify.IsNull() {
 		envValue := os.Getenv("WARPGATE_INSECURE_SKIP_VERIFY")
 
 		if len(envValue) > 0 {
@@ -211,7 +177,7 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 		}
 
 	} else {
-		insecureSkipVerify = config.InsecureSkipVerify.Value
+		insecureSkipVerify = config.InsecureSkipVerify.ValueBool()
 	}
 
 	if username == "" {
@@ -242,7 +208,7 @@ func (p *warpgateProvider) Configure(ctx context.Context, req provider.Configure
 }
 
 func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureResponse) bool {
-	if config.Host.Unknown {
+	if config.Host.IsUnknown() {
 		resp.Diagnostics.AddWarning(
 			"Unable to create client",
 			"Cannot use unknown value as host",
@@ -250,7 +216,7 @@ func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureRespo
 		return false
 	}
 
-	if config.Username.Unknown {
+	if config.Username.IsUnknown() {
 		resp.Diagnostics.AddWarning(
 			"Unable to create client",
 			"Cannot use unknown value as username",
@@ -258,7 +224,7 @@ func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureRespo
 		return false
 	}
 
-	if config.Password.Unknown {
+	if config.Password.IsUnknown() {
 		resp.Diagnostics.AddWarning(
 			"Unable to create client",
 			"Cannot use unknown value as password",
@@ -287,22 +253,3 @@ func (p *warpgateProvider) DataSources(ctx context.Context) []func() datasource.
 		NewHttpTargetListDataSource,
 	}
 }
-
-// func (p *warpgateProvider) GetResources(_ context.Context) (map[string]provider.ResourceType, diag.Diagnostics) {
-// 	return map[string]provider.ResourceType{
-// 		"warpgate_role":         roleResourceType{},
-// 		"warpgate_ssh_target":   sshTargetResourceType{},
-// 		"warpgate_http_target":  httpTargetResourceType{},
-// 		"warpgate_target_roles": targetRolesResourceType{},
-// 		// "warpgate_port_forwarded": resourcePortForwardedType{},
-// 	}, nil
-// }
-
-// func (p *warpgateProvider) GetDataSources(_ context.Context) (map[string]provider.DataSourceType, diag.Diagnostics) {
-// 	return map[string]provider.DataSourceType{
-// 		"warpgate_ssh_target_list":  sshTargetListDataSourceType{},
-// 		"warpgate_http_target_list": httpTargetListDataSourceType{},
-// 		"warpgate_role_list":        roleListDataSourceType{},
-// 		"warpgate_sshkey_list":      sshkeyListDataSourceType{},
-// 	}, nil
-// }

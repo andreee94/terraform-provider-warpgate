@@ -2,3 +2,10 @@ package: warpgate
 generate:
   client: true
   models: true
+  # embedded-spec: true
+  # strict-server: true
+  # chi-server: true
+# skip-fmt: true
+# output-options:
+#   skip-prune: true
+output: warpgate/client.gen.go

@@ -36,7 +36,7 @@ func TestAccSshTargetListDataSource(t *testing.T) {
 			{
 				Config: testAccSshTargetListDataSourceConfig(),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.warpgate_ssh_target_list.test", "targets.#", "3"),
+					resource.TestCheckResourceAttr("data.warpgate_ssh_target_list.test", "targets.#", "4"), // 3 + warpgate:admin
 
 					resource.TestCheckResourceAttr("data.warpgate_ssh_target_list.test", "targets.0.options.auth_kind", "Password"),
 					resource.TestCheckResourceAttr("data.warpgate_ssh_target_list.test", "targets.0.options.password", "A12345678"),
