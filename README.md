@@ -20,7 +20,7 @@ make gen-warpgate
 
 ## Testing
 
-To run acceptance testing is necessary to prepare the files for the warpgate docker container.
+<!-- To run acceptance testing is necessary to prepare the files for the warpgate docker container.
 
 Unfortunately this step cannot be automated (at least I wasn't able), so a one time step is required:
 
@@ -32,9 +32,14 @@ It will ask for `session recording` and a `password`.
 Keep track of the password and update the `WARPGATE_PASSWORD` inside the `_scripts/testacc_setup.sh`, or just use the super bad `password` as password. 
 This is just used for acceptance testing, and the container runs just for the time of the test. 
 
-After the configuration files are generated, run the test with the command:
+After the configuration files are generated, run the test with the command: -->
+
+To perform the acceptance test run the command:
 
 ```bash
 sudo make testacc
 ```
 
+It will setup warpgate in unattended mode, run the container and perform the test against it.
+
+> Docker is required

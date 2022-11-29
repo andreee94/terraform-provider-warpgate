@@ -6,11 +6,10 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=andreee94
 NAME=warpgate
 BINARY=terraform-provider-${NAME}
-VERSION=0.1.0
+VERSION=0.2.0
 OS_ARCH=linux_amd64
 
 GOBIN=~/go/bin
-CLIENTGENFILE=warpgate/client.gen.go
 CLIENTCONFIG=warpgate/config.yaml
 WARPGATEOPENAPI=https://raw.githubusercontent.com/warp-tech/warpgate/main/warpgate-web/src/admin/lib/openapi-schema.json
 
@@ -56,6 +55,9 @@ testacc:
 		(TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m || true) && \
 		./_scripts/testacc_cleanup.sh
 
+test-nosetup:
+	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
+
 testcov:
 	go test -v ./... -cover -coverprofile=coverage.out
 	go tool cover -html=coverage.out
@@ -66,7 +68,8 @@ install-oapi-codegen:
 gen-warpgate: install-oapi-codegen
 	curl -o /tmp/openapi-schema.json $(WARPGATEOPENAPI)
 	sed -i 's/uint8/uint16/' /tmp/openapi-schema.json # HACK FOR MARSHALLING OF UINT8 IN GO WHICH CONVERTS THE ARRAY TO STRING BASE64 INSTEAD OF ARRAY OF INT
-	$(GOBIN)/oapi-codegen -config $(CLIENTCONFIG) /tmp/openapi-schema.json > $(CLIENTGENFILE)
+	sed -i 's#"application/json; charset=utf-8"#"application/json"#' /tmp/openapi-schema.json # HACK FOR SUPPORTING "application/json; charset=utf-8" https://github.com/deepmap/oapi-codegen/blob/master/pkg/util/isjson.go
+	$(GOBIN)/oapi-codegen -config $(CLIENTCONFIG) /tmp/openapi-schema.json
 
 install-tfplugindocs:
 	go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
@@ -79,6 +82,6 @@ gen-warpgate-setup:
 	sudo rm -rf $(WARPGATE_SETUP_DATA_TEMP)
 	sudo rm -rf ./_scripts/data/*
 	mkdir -p ./_scripts/data/
-	docker run -it --rm -v $(WARPGATE_SETUP_DATA_TEMP):/data ghcr.io/warp-tech/warpgate:v0.6.4 setup
+	docker run -it --rm -v $(WARPGATE_SETUP_DATA_TEMP):/data ghcr.io/warp-tech/warpgate:v0.7.0 unattended-setup --admin-password
 	sudo cp -r $(WARPGATE_SETUP_DATA_TEMP)/* ./_scripts/data/
 	sudo rm -r $(WARPGATE_SETUP_DATA_TEMP)
