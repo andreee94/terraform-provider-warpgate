@@ -8,35 +8,35 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+
+	// "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
 var _ resource.Resource = &roleResource{}
 var _ resource.ResourceWithImportState = &roleResource{}
+var _ resource.ResourceWithConfigure = &roleResource{}
 
-func (r *roleResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"name": {
-				Type:     types.StringType,
-				Computed: false,
-				Required: true,
-			},
-			"id": {
+func (r roleResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Id of the role in warpgate",
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
-				Type: types.StringType,
 			},
+			"name": schema.StringAttribute{Computed: false, Required: true},
 		},
-	}, nil
+	}
 }
 
 func NewRoleResource() resource.Resource {

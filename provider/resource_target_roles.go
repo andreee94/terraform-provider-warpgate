@@ -9,10 +9,12 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -20,36 +22,33 @@ import (
 var _ resource.Resource = &targetRolesResource{}
 var _ resource.ResourceWithImportState = &targetRolesResource{}
 
-func (r *targetRolesResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
-				Type:                types.StringType,
-				MarkdownDescription: "Id of the target in warpgate",
+func (r targetRolesResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:            false,
 				Required:            true,
-				Optional:            false,
-				Validators: []tfsdk.AttributeValidator{
+				MarkdownDescription: "Id of the target in warpgate",
+				Validators: []validator.String{
 					validators.IsUUID(),
 				},
-				PlanModifiers: []tfsdk.AttributePlanModifier{
-					resource.RequiresReplace(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"role_ids": {
-				Type:                types.SetType{ElemType: types.StringType},
-				MarkdownDescription: "List of id roles'",
+			"role_ids": schema.SetAttribute{
 				Computed:            false,
 				Required:            true,
-				Optional:            false,
-				Validators: []tfsdk.AttributeValidator{
-					setvalidator.ValuesAre(
+				ElementType:         types.StringType,
+				MarkdownDescription: "List of id roles'",
+				Validators: []validator.Set{
+					setvalidator.ValueStringsAre(
 						validators.IsUUID(),
 					),
 				},
 			},
 		},
-	}, nil
+	}
 }
 
 func NewTargetRolesResource() resource.Resource {

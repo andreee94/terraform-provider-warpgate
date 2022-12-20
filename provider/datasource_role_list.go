@@ -6,8 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -21,28 +20,21 @@ func NewRoleListDataSource() datasource.DataSource {
 	return &roleListDataSource{}
 }
 
-func (r *roleListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"id": { // required for acceptance testing
-				Type:     types.StringType,
+func (d roleListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{Computed: true},
+			"roles": schema.ListNestedAttribute{
 				Computed: true,
-			},
-			"roles": {
-				Computed: true,
-				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"id": {
-						Type:     types.StringType,
-						Computed: true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id":   schema.StringAttribute{Computed: true},
+						"name": schema.StringAttribute{Computed: true},
 					},
-					"name": {
-						Type:     types.StringType,
-						Computed: true,
-					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
 
 type roleListDataSource struct {

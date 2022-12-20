@@ -10,10 +10,12 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -22,90 +24,65 @@ import (
 var _ resource.Resource = &httpTargetResource{}
 var _ resource.ResourceWithImportState = &httpTargetResource{}
 
-func (r *httpTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"allow_roles": {
-				Type:     types.SetType{ElemType: types.StringType},
-				Computed: true,
-				Required: false,
-				Optional: true,
-			},
-			"id": {
+func (r httpTargetResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Id of the http target in warpgate",
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
-				},
-				Type: types.StringType,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				}},
+			"allow_roles": schema.SetAttribute{Computed: true, ElementType: types.StringType},
+			"name": schema.StringAttribute{
+				Computed:            false,
+				Required:            true,
+				MarkdownDescription: "The username of the user.",
 			},
-			"name": {
-				Type:     types.StringType,
+			"options": schema.SingleNestedAttribute{
 				Computed: false,
 				Required: true,
-			},
-			"options": {
-				Computed: false,
-				Optional: false,
-				Required: true,
-				Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
-					"external_host": {
-						Type:     types.StringType,
-						Computed: false,
-						Required: false,
-						Optional: true,
-						Validators: []tfsdk.AttributeValidator{
-							validators.IsDomain(),
-							// validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
-						},
+				Attributes: map[string]schema.Attribute{
+					"external_host": schema.StringAttribute{
+						Computed:   false,
+						Optional:   true,
+						Validators: []validator.String{validators.IsDomain()},
 					},
-					"url": {
-						Type:     types.StringType,
+					"url": schema.StringAttribute{
+						Computed:   false,
+						Required:   true,
+						Validators: []validator.String{validators.IsDomain()},
+					},
+					"headers": schema.MapAttribute{
+						Computed:    false,
+						Optional:    true,
+						ElementType: types.StringType,
+					},
+					"tls": schema.SingleNestedAttribute{
 						Computed: false,
 						Required: true,
-						Optional: false,
-						Validators: []tfsdk.AttributeValidator{
-							validators.IsDomain(),
-							// validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
-						},
-					},
-					"headers": {
-						Type:     types.MapType{ElemType: types.StringType},
-						Computed: false,
-						Optional: true,
-						Required: false,
-					},
-					"tls": {
-						Computed: false,
-						Optional: false,
-						Required: true,
-						Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
-							"mode": {
-								Type:     types.StringType,
+						Attributes: map[string]schema.Attribute{
+							"mode": schema.StringAttribute{
 								Computed: false,
 								Required: true,
-								Optional: false,
-								Validators: []tfsdk.AttributeValidator{
+								Validators: []validator.String{
 									stringvalidator.OneOf(
 										string(warpgate.Disabled),
 										string(warpgate.Preferred),
 										string(warpgate.Required),
 									),
-									// validators.StringIn([]string{string(warpgate.Disabled), string(warpgate.Preferred), string(warpgate.Required)}, false),
 								},
 							},
-							"verify": {
-								Type:     types.BoolType,
+							"verify": schema.BoolAttribute{
 								Computed: false,
 								Required: true,
-								Optional: false,
 							},
-						}),
+						},
 					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
 
 func NewHttpTargetResource() resource.Resource {

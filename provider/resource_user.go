@@ -9,13 +9,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -33,141 +35,139 @@ var credentialsAttributes = map[string]attr.Type{
 	"totp_key":   types.ListType{ElemType: types.Int64Type},
 }
 
-func (r *userTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
+func (r userTargetResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Id of the user in warpgate",
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
-				Type: types.StringType,
 			},
-			"roles": {
-				Description: "The list of roles that the user belong to. To assign a new role to the user refer to [user_roles](user_roles.md) ",
-				Type:        types.SetType{ElemType: types.StringType},
-				Computed:    true,
+			"roles": schema.SetAttribute{
+				Computed:            true,
+				MarkdownDescription: "The list of roles that the user belong to. To assign a new role to the user refer to [user_roles](user_roles.md) ",
+				ElementType:         types.StringType,
 			},
-			"username": {
-				Description: "The username of the user.",
-				Type:        types.StringType,
-				Computed:    false,
-				Required:    true,
+			"username": schema.StringAttribute{
+				Computed:            false,
+				Required:            true,
+				MarkdownDescription: "The username of the user.",
 			},
-			"credentials": {
-				Description: "The list of credentials that the user may use to connect to warpgate",
-				Computed:    false,
-				Required:    true,
-				Attributes: tfsdk.SetNestedAttributes(map[string]tfsdk.Attribute{
-					"kind": {
-						Description: "The credential type. Valid values are:\n" +
-							"	- `Sso` requires: `email` and `provider`.\n" +
-							"	- `Totp` requires: `totp_key`.\n" +
-							"	- `Password` requires: `hash`.\n" +
-							"	- `PublicKey` requires: `public_key`.\n",
-						Type:     types.StringType,
-						Computed: false,
-						Required: true,
-						Validators: []tfsdk.AttributeValidator{
-							stringvalidator.OneOf(
-								string(warpgate.Sso),
-								string(warpgate.Totp),
-								string(warpgate.Password),
-								string(warpgate.PublicKey),
-							),
+			"credentials": schema.SetNestedAttribute{
+				Computed: false,
+				Required: true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"kind": schema.StringAttribute{
+							Computed: false,
+							Required: true,
+							MarkdownDescription: "The credential type. Valid values are:\n" +
+								"	- `Sso` requires: `email` and `provider`.\n" +
+								"	- `Totp` requires: `totp_key`.\n" +
+								"	- `Password` requires: `hash`.\n" +
+								"	- `PublicKey` requires: `public_key`.\n",
+							Validators: []validator.String{
+								stringvalidator.OneOf(
+									string(warpgate.Sso),
+									string(warpgate.Totp),
+									string(warpgate.Password),
+									string(warpgate.PublicKey),
+								),
+							},
 						},
-					},
-					/////////////////////////////////////////////////////////////////////////////////
-					"hash": {
-						Type:        types.StringType,
-						Computed:    false,
-						Required:    false,
-						Optional:    true,
-						Sensitive:   true,
-						Description: "The hashed password. Only for kind: `Password`",
-						Validators: []tfsdk.AttributeValidator{
-							schemavalidator.ConflictsWith(
-								path.MatchRelative().AtParent().AtName("email"),
-								path.MatchRelative().AtParent().AtName("provider"),
-								path.MatchRelative().AtParent().AtName("public_key"),
-								path.MatchRelative().AtParent().AtName("totp_key"),
-							),
+						/////////////////////////////////////////////////////////////////////////////////
+						"hash": schema.StringAttribute{
+							Computed:            false,
+							Required:            false,
+							Optional:            true,
+							Sensitive:           true, // TODO it's really sensitive?
+							MarkdownDescription: "The hashed password. Only for kind: `Password`",
+							Validators: []validator.String{
+								stringvalidator.ConflictsWith(
+									path.MatchRelative().AtParent().AtName("email"),
+									path.MatchRelative().AtParent().AtName("provider"),
+									path.MatchRelative().AtParent().AtName("public_key"),
+									path.MatchRelative().AtParent().AtName("totp_key"),
+								),
+							},
 						},
-					},
-					/////////////////////////////////////////////////////////////////////////////////
-					"email": {
-						Type:        types.StringType,
-						Computed:    false,
-						Required:    false,
-						Optional:    true,
-						Description: "The email of the user in the sso system. Only for kind: `Sso`",
-						Validators: []tfsdk.AttributeValidator{
-							schemavalidator.ConflictsWith(
-								path.MatchRelative().AtParent().AtName("hash"),
-								path.MatchRelative().AtParent().AtName("public_key"),
-								path.MatchRelative().AtParent().AtName("totp_key"),
-							),
-							schemavalidator.AlsoRequires(
-								path.MatchRelative().AtParent().AtName("provider"),
-							),
+						/////////////////////////////////////////////////////////////////////////////////
+						"email": schema.StringAttribute{
+							Computed:            false,
+							Required:            false,
+							Optional:            true,
+							MarkdownDescription: "The email of the user in the sso system. Only for kind: `Sso`",
+							Validators: []validator.String{
+								stringvalidator.ConflictsWith(
+									path.MatchRelative().AtParent().AtName("hash"),
+									path.MatchRelative().AtParent().AtName("public_key"),
+									path.MatchRelative().AtParent().AtName("totp_key"),
+								),
+								stringvalidator.AlsoRequires(
+									path.MatchRelative().AtParent().AtName("provider"),
+								),
+							},
 						},
-					},
-					"provider": {
-						Type:        types.StringType,
-						Computed:    false,
-						Required:    false,
-						Optional:    true,
-						Description: "The sso provider name defined in the configuration file. Only for kind: `Sso`",
-						Validators: []tfsdk.AttributeValidator{
-							schemavalidator.ConflictsWith(
-								path.MatchRelative().AtParent().AtName("hash"),
-								path.MatchRelative().AtParent().AtName("public_key"),
-								path.MatchRelative().AtParent().AtName("totp_key"),
-							),
-							schemavalidator.AlsoRequires(
-								path.MatchRelative().AtParent().AtName("email"),
-							),
+						"provider": schema.StringAttribute{
+							Computed:            false,
+							Required:            false,
+							Optional:            true,
+							MarkdownDescription: "The sso provider name defined in the configuration file. Only for kind: `Sso`",
+							Validators: []validator.String{
+								stringvalidator.ConflictsWith(
+									path.MatchRelative().AtParent().AtName("hash"),
+									path.MatchRelative().AtParent().AtName("public_key"),
+									path.MatchRelative().AtParent().AtName("totp_key"),
+								),
+								stringvalidator.AlsoRequires(
+									path.MatchRelative().AtParent().AtName("email"),
+								),
+							},
 						},
-					},
-					/////////////////////////////////////////////////////////////////////////////////
-					"public_key": {
-						Type:        types.StringType,
-						Computed:    false,
-						Required:    false,
-						Optional:    true,
-						Description: "The ssh public key that the user uses to connect via ssh. Only for kind: `PublicKey`",
-						Validators: []tfsdk.AttributeValidator{
-							schemavalidator.ConflictsWith(
-								path.MatchRelative().AtParent().AtName("hash"),
-								path.MatchRelative().AtParent().AtName("email"),
-								path.MatchRelative().AtParent().AtName("provider"),
-								path.MatchRelative().AtParent().AtName("totp_key"),
-							),
+						/////////////////////////////////////////////////////////////////////////////////
+						"public_key": schema.StringAttribute{
+							Computed:    false,
+							Required:    false,
+							Optional:    true,
+							Description: "The ssh public key that the user uses to connect via ssh. Only for kind: `PublicKey`",
+							Validators: []validator.String{
+								stringvalidator.ConflictsWith(
+									path.MatchRelative().AtParent().AtName("hash"),
+									path.MatchRelative().AtParent().AtName("email"),
+									path.MatchRelative().AtParent().AtName("provider"),
+									path.MatchRelative().AtParent().AtName("totp_key"),
+								),
+							},
 						},
-					},
-					/////////////////////////////////////////////////////////////////////////////////
-					"totp_key": {
-						Type:        types.ListType{ElemType: types.Int64Type},
-						Computed:    false,
-						Required:    false,
-						Optional:    true,
-						Sensitive:   true,
-						Description: "The totp secret key as array of uint8. Only for kind: `Totp`",
-						Validators: []tfsdk.AttributeValidator{
-							schemavalidator.ConflictsWith(
-								path.MatchRelative().AtParent().AtName("hash"),
-								path.MatchRelative().AtParent().AtName("email"),
-								path.MatchRelative().AtParent().AtName("provider"),
-								path.MatchRelative().AtParent().AtName("public_key"),
-							),
+						/////////////////////////////////////////////////////////////////////////////////
+						"totp_key": schema.ListAttribute{
+							ElementType: types.Int64Type,
+							Computed:    false,
+							Required:    false,
+							Optional:    true,
+							Sensitive:   true,
+							Description: "The totp secret key as array of uint8. Only for kind: `Totp`",
+							Validators: []validator.List{
+								listvalidator.ConflictsWith(
+									path.MatchRelative().AtParent().AtName("hash"),
+									path.MatchRelative().AtParent().AtName("email"),
+									path.MatchRelative().AtParent().AtName("provider"),
+									path.MatchRelative().AtParent().AtName("public_key"),
+								),
+							},
 						},
+						/////////////////////////////////////////////////////////////////////////////////
+
 					},
-					/////////////////////////////////////////////////////////////////////////////////
-				}),
+				},
+				// Validators: []validator.List{
+				// 	listvalidator.SizeAtMost(2),
+				// },
 			},
 		},
-	}, nil
+	}
 }
 
 func NewUserResource() resource.Resource {

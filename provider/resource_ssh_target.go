@@ -11,10 +11,12 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -23,75 +25,58 @@ import (
 var _ resource.Resource = &sshTargetResource{}
 var _ resource.ResourceWithImportState = &sshTargetResource{}
 
-func (r *sshTargetResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"allow_roles": {
-				Type:     types.SetType{ElemType: types.StringType},
-				Computed: true,
-				Required: false,
-				Optional: true,
-			},
-			"id": {
+func (r sshTargetResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "Id of the ssh target in warpgate",
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				MarkdownDescription: "Id of the http target in warpgate",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
-				Type: types.StringType,
 			},
-			"name": {
-				Type:     types.StringType,
+			"allow_roles": schema.SetAttribute{Computed: true, ElementType: types.StringType},
+			"name": schema.StringAttribute{
 				Computed: false,
 				Required: true,
 			},
-			"options": {
+			"options": schema.SingleNestedAttribute{
 				Computed: false,
 				Required: true,
-				Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
-					"host": {
-						Type:     types.StringType,
-						Computed: false,
-						Required: true,
-						Validators: []tfsdk.AttributeValidator{
-							validators.IsDomain(),
-						},
+				Attributes: map[string]schema.Attribute{
+					"host": schema.StringAttribute{
+						Computed:   false,
+						Required:   true,
+						Validators: []validator.String{validators.IsDomain()},
 					},
-					"port": {
-						Type:     types.Int64Type,
-						Computed: false,
-						Required: true,
-						Validators: []tfsdk.AttributeValidator{
-							int64validator.Between(1, 65535),
-						},
+					"port": schema.Int64Attribute{
+						Computed:   false,
+						Required:   true,
+						Validators: []validator.Int64{int64validator.Between(1, 65535)},
 					},
-					"username": {
-						Type:     types.StringType,
+					"username": schema.StringAttribute{
 						Computed: false,
 						Required: true,
 					},
-					"auth_kind": {
-						Type:     types.StringType,
+					"password": schema.StringAttribute{
+						Computed:  false,
+						Optional:  true,
+						Sensitive: true,
+					},
+					"auth_kind": schema.StringAttribute{
 						Computed: false,
 						Required: true,
-						Validators: []tfsdk.AttributeValidator{
+						Validators: []validator.String{
 							stringvalidator.OneOf(
 								string(warpgate.Password),
 								string(warpgate.PublicKey),
 							),
 						},
 					},
-					"password": {
-						Type:      types.StringType,
-						Computed:  false,
-						Required:  false,
-						Optional:  true,
-						Sensitive: true,
-					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
 
 func NewSshTargetResource() resource.Resource {

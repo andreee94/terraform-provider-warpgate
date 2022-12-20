@@ -6,10 +6,8 @@ import (
 	"terraform-provider-warpgate/warpgate"
 
 	"github.com/google/uuid"
-	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -23,65 +21,32 @@ func NewSshTargetListDataSource() datasource.DataSource {
 	return &sshTargetListDataSource{}
 }
 
-func (r *sshTargetListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"id": { // required for acceptance testing
-				Type:     types.StringType,
+func (d sshTargetListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{Computed: true},
+			"targets": schema.ListNestedAttribute{
 				Computed: true,
-			},
-			"targets": {
-				Computed: true,
-				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"allow_roles": {
-						Type:     types.SetType{ElemType: types.StringType},
-						Computed: true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id":          schema.StringAttribute{Computed: true},
+						"name":        schema.StringAttribute{Computed: true},
+						"allow_roles": schema.SetAttribute{Computed: true, ElementType: types.StringType},
+						"options": schema.SingleNestedAttribute{
+							Computed: true,
+							Attributes: map[string]schema.Attribute{
+								"host":      schema.StringAttribute{Computed: true},
+								"port":      schema.Int64Attribute{Computed: true},
+								"username":  schema.StringAttribute{Computed: true},
+								"auth_kind": schema.StringAttribute{Computed: true},
+								"password":  schema.StringAttribute{Computed: true, Sensitive: true},
+							},
+						},
 					},
-					"id": {
-						Type:     types.StringType,
-						Computed: true,
-					},
-					"name": {
-						Type:     types.StringType,
-						Computed: true,
-					},
-					"options": {
-						Computed: true,
-						Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
-							"host": {
-								Type:     types.StringType,
-								Computed: true,
-							},
-							"port": {
-								Type:     types.Int64Type,
-								Computed: true,
-							},
-							"username": {
-								Type:     types.StringType,
-								Computed: true,
-							},
-							"auth_kind": {
-								Type:     types.StringType,
-								Computed: true,
-								Validators: []tfsdk.AttributeValidator{
-									stringvalidator.OneOf(
-										string(warpgate.Password),
-										string(warpgate.PublicKey),
-									),
-									// validators.StringIn([]string{string(warpgate.Password), string(warpgate.PublicKey)}, false),
-								},
-							},
-							"password": {
-								Type:      types.StringType,
-								Computed:  true,
-								Sensitive: true,
-							},
-						}),
-					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
 
 type sshTargetListDataSource struct {

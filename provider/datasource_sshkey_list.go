@@ -6,8 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -17,34 +16,22 @@ import (
 // Ensure provider defined types fully satisfy framework interfaces
 var _ datasource.DataSource = &sshkeyListDataSource{}
 
-func (d *sshkeyListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"id": { // required for acceptance testing
-				Type:     types.StringType,
+func (d sshkeyListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id":   schema.StringAttribute{Computed: true},
+			"kind": schema.StringAttribute{Computed: false, Required: true},
+			"sshkeys": schema.ListNestedAttribute{
 				Computed: true,
-			},
-			"kind": {
-				Type:     types.StringType,
-				Computed: false,
-				Required: true,
-				Optional: false,
-			},
-			"sshkeys": {
-				Computed: true,
-				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"kind": {
-						Type:     types.StringType,
-						Computed: true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"kind":              schema.StringAttribute{Computed: true},
+						"public_key_base64": schema.StringAttribute{Computed: true},
 					},
-					"public_key_base64": {
-						Type:     types.StringType,
-						Computed: true,
-					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
 
 func NewSshkeyListDataSource() datasource.DataSource {

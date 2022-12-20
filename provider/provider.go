@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"terraform-provider-warpgate/provider/modifiers"
 	"terraform-provider-warpgate/provider/validators"
 	"terraform-provider-warpgate/warpgate"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -27,7 +26,8 @@ func New(version string) func() provider.Provider {
 }
 
 var _ provider.Provider = &warpgateProvider{}
-var _ provider.ProviderWithMetadata = &warpgateProvider{}
+
+// var _ provider.ProviderWithMetaSchema = &warpgateProvider{}
 
 type warpgateProvider struct {
 	configured bool
@@ -40,59 +40,39 @@ func (p *warpgateProvider) Metadata(ctx context.Context, req provider.MetadataRe
 	resp.Version = p.version
 }
 
-func (p *warpgateProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"host": {
-				Type:        types.StringType,
+// Schema(context.Context, SchemaRequest, *SchemaResponse)
+func (d warpgateProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"host": schema.StringAttribute{
 				Description: "The hostname of the warpgate server",
 				Optional:    true,
-				Required:    false,
-				Computed:    false,
-				Validators: []tfsdk.AttributeValidator{
+				Validators: []validator.String{
 					validators.IsDomain(),
-					// validators.StringRegex{Regex: regexp.MustCompile(`^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})$|^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
 				},
 			},
-			"port": {
-				Type:        types.Int64Type,
-				Description: "The port of the warpgate server (Default: 8888)",
+			"port": schema.Int64Attribute{
+				Description: "The hostname of the warpgate server",
 				Optional:    true,
-				Required:    false,
-				Validators: []tfsdk.AttributeValidator{
+				Validators: []validator.Int64{
 					int64validator.Between(1, 65535),
 				},
-				PlanModifiers: []tfsdk.AttributePlanModifier{
-					modifiers.IntDefault(8888),
-				},
 			},
-			"username": {
-				Type:        types.StringType,
+			"username": schema.StringAttribute{
 				Description: "The username to login to the warpgate server",
 				Optional:    true,
-				Required:    false,
-				Computed:    false,
 			},
-			"password": {
-				Type:        types.StringType,
+			"password": schema.StringAttribute{
 				Description: "The password to login to the warpgate server",
 				Optional:    true,
-				Required:    false,
-				Computed:    false,
 				Sensitive:   true,
 			},
-			"insecure_skip_verify": {
-				Type:        types.BoolType,
+			"insecure_skip_verify": schema.BoolAttribute{
 				Description: "If to skip the verification of the tls certificate (For self signed certificates)",
 				Optional:    true,
-				Required:    false,
-				Computed:    false,
-				PlanModifiers: []tfsdk.AttributePlanModifier{
-					modifiers.BoolDefault(false),
-				},
 			},
 		},
-	}, nil
+	}
 }
 
 // Provider schema struct

@@ -6,8 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
@@ -21,62 +20,37 @@ func NewHttpTargetListDataSource() datasource.DataSource {
 	return &httpTargetListDataSource{}
 }
 
-func (d *httpTargetListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"id": { // required for acceptance testing
-				Type:     types.StringType,
+func (d httpTargetListDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{Computed: true},
+			"targets": schema.ListNestedAttribute{
 				Computed: true,
-			},
-			"targets": {
-				Computed: true,
-				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"allow_roles": {
-						Type:     types.SetType{ElemType: types.StringType},
-						Computed: true,
-					},
-					"id": {
-						Type:     types.StringType,
-						Computed: true,
-					},
-					"name": {
-						Type:     types.StringType,
-						Computed: true,
-					},
-					"options": {
-						Computed: true,
-						Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
-							"external_host": {
-								Type:     types.StringType,
-								Computed: true,
-							},
-							"url": {
-								Type:     types.StringType,
-								Computed: true,
-							},
-							"headers": {
-								Type:     types.MapType{ElemType: types.StringType},
-								Computed: true,
-							},
-							"tls": {
-								Computed: true,
-								Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
-									"mode": {
-										Type:     types.StringType,
-										Computed: true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"allow_roles": schema.SetAttribute{Computed: true, ElementType: types.StringType},
+						"id":          schema.StringAttribute{Computed: true},
+						"name":        schema.StringAttribute{Computed: true},
+						"options": schema.SingleNestedAttribute{
+							Computed: true,
+							Attributes: map[string]schema.Attribute{
+								"external_host": schema.StringAttribute{Computed: true},
+								"url":           schema.StringAttribute{Computed: true},
+								"headers":       schema.MapAttribute{Computed: true, ElementType: types.StringType},
+								"tls": schema.SingleNestedAttribute{
+									Computed: true,
+									Attributes: map[string]schema.Attribute{
+										"mode":   schema.StringAttribute{Computed: true},
+										"verify": schema.BoolAttribute{Computed: true},
 									},
-									"verify": {
-										Type:     types.BoolType,
-										Computed: true,
-									},
-								}),
+								},
 							},
-						}),
+						},
 					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
 
 type httpTargetListDataSource struct {
